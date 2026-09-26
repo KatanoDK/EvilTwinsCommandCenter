@@ -1,6 +1,6 @@
 local addonName, ET = ...
 ET.name = addonName
-ET.version = "0.6.0"
+ET.version = "0.1.0"
 ET.slots = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 4, "Shirt" },
     { 5, "Chest" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },

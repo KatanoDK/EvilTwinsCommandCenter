@@ -2,7 +2,7 @@
 ## Title: Evil Twins Command Center
 ## Notes: Guild crafting directory, gear, raid prep, talent, wishlist, bags, and SimC sharing
 ## Author: Evil Twins
-## Version: 0.6.0
+## Version: 0.1.0
 ## SavedVariables: EvilTwinsCCDB
 ## OptionalDeps: Simulationcraft
 

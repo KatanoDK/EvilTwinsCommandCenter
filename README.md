@@ -13,7 +13,9 @@ Run `/etcc test` for a quick in-game snapshot, bag, crafting, and transfer encod
 
 Installing and enabling this addon is the opt-in. It automatically captures and shares the character's gear, build, wishlist, and carried bags with online guild members at ranks 0–5 who run it. There are no sharing checkboxes or prompts. If the current [SimulationCraft addon](https://github.com/simulationcraft/simc-addon) is also installed, its equipped-gear export is shared automatically. SimC transfers include equipped gear only. The current SimulationCraft switch combines bags and bank, so the addon shares carried bags separately and excludes bank data.
 
-## What version 0.6 does
+## What version 0.1.0 does
+
+This is an untested development version. Keep the overall addon version at `0.1.0` until in-game testing; Git commits identify individual builds.
 
 - Gives every guild rank access to **Crafting directory**. Opening a profession window automatically scans learned and unlearned recipes and shares the saved scan with guildmates who have the addon. Select a character to see what they have learned, or choose **All guild crafters** and search for a recipe to find who knows it. Each character needs to open each profession at least once. A profession that has not been scanned is unknown, not missing. A known recipe does not guarantee materials, quality, or other crafting requirements.
 - Gives guild ranks 0 through 5 (Guild Master through rank 5) access to gear browsing, SimC requests, bags, wishlists, and raid prep. Lower ranks with the addon share their own data automatically and can browse the crafting directory, but cannot browse leader data or send leader requests. The cutoff for leader tools is currently fixed at rank index 5.
@@ -37,6 +39,10 @@ Disabling or uninstalling the addon stops new captures and replies. A leader who
 The addon uses Blizzard's guild and whisper addon-message channels. Guild requests use the guild channel; shared snapshot, bag, and SimC data are sent as whispers to eligible online leaders. Profession scans are sent to the guild, and saved scans are sent by whisper to newly online guildmates. Data are encoded, split into small parts, sent through a paced queue, and reassembled by the receiver. Recipients check guild membership before accepting craft data and check the sender's current guild rank before answering leader requests. Lower ranks discard and clear cached leader data from older addon versions. The addon does not use a server or reach the internet. Snapshots, profession scans, local supply settings, and last received bags and SimC exports are stored per WoW installation in `EvilTwinsCCDB` SavedVariables.
 
 ## Development notes
+
+For private testing, run `python scripts/package_addon.py`. It creates `dist/EvilTwinsCommandCenter-0.1.0.zip` containing the installable addon folder and a build manifest. Send that ZIP directly to a guildmate through your private guild channel; they can extract its `EvilTwinsCommandCenter` folder into their Retail `Interface/AddOns` folder. No GitHub account is needed for a ZIP you send them. Packaging does not install the addon or touch a WoW folder.
+
+See [the updater proposal](docs/UPDATER.md) for private automatic distribution. The updater is not implemented yet.
 
 Lua syntax and crafting protocol checks can be run with `python tests/test_crafting.py` after installing the `lupa` Python package. These use mocked WoW APIs and do not replace an in-game UI and network test.
 
