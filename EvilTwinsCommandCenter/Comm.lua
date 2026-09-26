@@ -71,6 +71,15 @@ function Comm:Publish(snapshot, target)
     end
 end
 
+function Comm:PublishSimC(target)
+    if not IsInGuild() or not ET.db.settings.shareProfile or not ET.db.settings.shareSimC then return false end
+    local entry = ET:GetCachedSimC(ET.key, UnitGUID("player"))
+    if not entry then return false end
+    local data = ET.Protocol:EncodeSimC(entry.guid, entry.updated, entry.profile)
+    if not target then self:CancelTransfers("P", "GUILD") end
+    return self:QueueTransfer("P", data, target and "WHISPER" or "GUILD", target)
+end
+
 function Comm:Hello()
     if IsInGuild() and not self.helloSent then
         self.helloSent = true
@@ -85,13 +94,23 @@ function Comm:InitialSync()
         self.publishedOnLogin = true
         self:Publish(ET:CaptureSelf())
     end
+    if ET.db.settings.shareSimC and not self.simcScheduledOnLogin then
+        self.simcScheduledOnLogin = true
+        ET:ScheduleSimCPublish()
+    end
 end
 
 function Comm:RequestSimC(sender, guid)
     if not sender or not guid or guid == "" then return false end
     if not self:IsGuildSender(sender) then return false end
-    self.pendingSimC[normalize(sender)] = time() + 900
-    return self:Queue("Q|" .. guid, "GUILD")
+    if not self:Queue("Q|" .. guid, "GUILD") then return false end
+    self.pendingSimC[normalize(sender)] = { guid = guid, expires = time() + 900 }
+    return true
+end
+
+function Comm:RevokeSimC()
+    self:CancelTransfers("P")
+    if IsInGuild() then self:Queue("Y|" .. (UnitGUID("player") or ""), "GUILD") end
 end
 
 function Comm:Revoke()
@@ -99,10 +118,12 @@ function Comm:Revoke()
     if IsInGuild() then self:Queue("X|" .. (UnitGUID("player") or ""), "GUILD") end
 end
 
-function Comm:CancelTransfers(kind)
+function Comm:CancelTransfers(kind, channel)
     for index = #self.queue, 1, -1 do
-        local message = self.queue[index].message
-        if message:sub(1, 2) == "E|" and (not kind or message:sub(3, 3) == kind) then
+        local entry = self.queue[index]
+        local message = entry.message
+        if message:sub(1, 2) == "E|" and (not kind or message:sub(3, 3) == kind)
+            and (not channel or entry.channel == channel) then
             table.remove(self.queue, index)
         end
     end
@@ -118,7 +139,10 @@ function Comm:ReceiveTransfer(sender, channel, message)
         if channel ~= "GUILD" and channel ~= "WHISPER" then return end
         if channel == "WHISPER" and not self:IsGuildSender(sender) then return end
     else
-        if channel ~= "WHISPER" or (self.pendingSimC[normalize(sender)] or 0) < time() then return end
+        if channel ~= "GUILD" and channel ~= "WHISPER" then return end
+        if channel == "WHISPER" then
+            if not self:IsGuildSender(sender) then return end
+        end
     end
     local key = sender .. ":" .. kind .. ":" .. id
     local transfer = self.incoming[key]
@@ -148,10 +172,16 @@ function Comm:ReceiveTransfer(sender, channel, message)
             ET.UI:Refresh()
         end
     else
-        self.pendingSimC[normalize(sender)] = nil
-        if data:find("^#") or data:find("^%a+=[^\n]+") then
-            ET.UI:ShowCopy("SimC: " .. sender, data)
-            ET:Print("Received a SimC profile from " .. sender .. ".")
+        local guid, updated, profile = ET.Protocol:DecodeSimC(data)
+        if not guid then return end
+        local snapshot = ET.db.characters[sender]
+        if snapshot and snapshot.guid ~= guid then return end
+        local pending = self.pendingSimC[normalize(sender)]
+        if pending and pending.expires >= time() and pending.guid ~= guid then return end
+        local wasRequested = pending and pending.guid == guid and pending.expires >= time()
+        if wasRequested then self.pendingSimC[normalize(sender)] = nil end
+        if ET:StoreSimC(sender, guid, updated, profile) then
+            if wasRequested then ET:Print("Saved a SimC profile from " .. sender .. ".") end
         end
     end
 end
@@ -162,21 +192,32 @@ function Comm:OnMessage(prefix, message, channel, sender)
         self:ReceiveTransfer(sender, channel, message)
     elseif channel == "GUILD" and message == "H|1" and ET.db.settings.shareProfile then
         C_Timer.After(math.random(2, 6), function()
-            if ET.db.settings.shareProfile then self:Publish(ET:CaptureSelf(), sender) end
+            if ET.db.settings.shareProfile then
+                self:Publish(ET:CaptureSelf(), sender)
+                self:PublishSimC(sender)
+            end
         end)
     elseif channel == "GUILD" and message:sub(1, 2) == "Q|" then
         if not ET.db.settings.shareProfile or not ET.db.settings.shareSimC then return end
         if message:sub(3) ~= UnitGUID("player") then return end
         local profile, err = ET:GetSimCProfile()
         if profile then
-            if not self:QueueTransfer("P", profile, "WHISPER", sender) then
+            if #profile > 89000 then
+                self:Queue("N|Profile is too large to share.", "WHISPER", sender)
+                return
+            end
+            local guid, updated = UnitGUID("player"), time()
+            ET:StoreSimC(ET.key, guid, updated, profile)
+            local packed = ET.Protocol:EncodeSimC(guid, updated, profile)
+            if not self:QueueTransfer("P", packed, "WHISPER", sender) then
                 self:Queue("N|Profile is too large or the transfer queue is busy.", "WHISPER", sender)
             end
         else
             self:Queue("N|" .. err, "WHISPER", sender)
         end
     elseif channel == "WHISPER" and message:sub(1, 2) == "N|" then
-        if (self.pendingSimC[normalize(sender)] or 0) >= time() then
+        local pending = self.pendingSimC[normalize(sender)]
+        if pending and pending.expires >= time() then
             self.pendingSimC[normalize(sender)] = nil
             ET:Print(sender .. ": " .. message:sub(3))
         end
@@ -184,6 +225,13 @@ function Comm:OnMessage(prefix, message, channel, sender)
         local snapshot = ET.db.characters[sender]
         if snapshot and snapshot.guid == message:sub(3) then
             ET.db.characters[sender] = nil
+            ET.db.simcProfiles[sender] = nil
+            ET.UI:Refresh()
+        end
+    elseif channel == "GUILD" and message:sub(1, 2) == "Y|" then
+        local entry = ET.db.simcProfiles[sender]
+        if entry and entry.guid == message:sub(3) then
+            ET.db.simcProfiles[sender] = nil
             ET.UI:Refresh()
         end
     end

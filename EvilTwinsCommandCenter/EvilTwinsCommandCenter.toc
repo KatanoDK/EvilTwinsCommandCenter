@@ -2,7 +2,7 @@
 ## Title: Evil Twins Command Center
 ## Notes: Opt-in guild gear, talent, wishlist, and SimC sharing
 ## Author: Evil Twins
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: EvilTwinsCCDB
 ## OptionalDeps: Simulationcraft
 

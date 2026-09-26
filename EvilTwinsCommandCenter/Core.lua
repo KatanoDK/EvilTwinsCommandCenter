@@ -1,6 +1,6 @@
 local addonName, ET = ...
 ET.name = addonName
-ET.version = "0.1.0"
+ET.version = "0.2.0"
 ET.slots = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 4, "Shirt" },
     { 5, "Chest" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
@@ -28,6 +28,7 @@ function ET:InitDB()
     local db = EvilTwinsCCDB
     if type(db.settings) ~= "table" then db.settings = {} end
     if type(db.characters) ~= "table" then db.characters = {} end
+    if type(db.simcProfiles) ~= "table" then db.simcProfiles = {} end
     if type(db.wishlists) ~= "table" then db.wishlists = {} end
     if db.settings.shareProfile == nil then db.settings.shareProfile = false end
     if db.settings.shareSimC == nil then db.settings.shareSimC = false end
@@ -87,6 +88,56 @@ function ET:SchedulePublish()
     end)
 end
 
+function ET:GetCachedSimC(key, guid)
+    local entry = self.db.simcProfiles[key]
+    if type(entry) == "table" and entry.guid == guid and type(entry.updated) == "number"
+        and type(entry.profile) == "string" then
+        return entry
+    end
+end
+
+function ET:StoreSimC(key, guid, updated, profile)
+    if type(key) ~= "string" or type(guid) ~= "string" or #guid == 0 or #guid > 64
+        or type(updated) ~= "number" or updated <= 0 or updated > time() + 300
+        or type(profile) ~= "string" or #profile == 0 or #profile > 89000 then return false end
+    local current = self:GetCachedSimC(key, guid)
+    if current and current.updated > updated then return false end
+    self.db.simcProfiles[key] = { guid = guid, updated = updated, profile = profile }
+    local count, oldestKey, oldestTime = 0, nil, math.huge
+    for cachedKey, entry in pairs(self.db.simcProfiles) do
+        count = count + 1
+        if cachedKey ~= self.key and (entry.updated or 0) < oldestTime then
+            oldestKey, oldestTime = cachedKey, entry.updated or 0
+        end
+    end
+    if count > 50 and oldestKey then self.db.simcProfiles[oldestKey] = nil end
+    if self.UI then self.UI:Refresh() end
+    return true
+end
+
+function ET:PublishSelfSimC()
+    if not self.db.settings.shareProfile or not self.db.settings.shareSimC then return end
+    if InCombatLockdown and InCombatLockdown() then
+        self:ScheduleSimCPublish()
+        return
+    end
+    local profile = self:GetSimCProfile()
+    if not profile then return end
+    local guid, updated = UnitGUID("player"), time()
+    if self:StoreSimC(self.key, guid, updated, profile) then
+        self.Comm:PublishSimC()
+    end
+end
+
+function ET:ScheduleSimCPublish()
+    if not self.db.settings.shareProfile or not self.db.settings.shareSimC then return end
+    if self.simcPublishTimer then self.simcPublishTimer:Cancel() end
+    self.simcPublishTimer = C_Timer.NewTimer(15, function()
+        self.simcPublishTimer = nil
+        self:PublishSelfSimC()
+    end)
+end
+
 function ET:AddWish(itemText, note)
     local itemID = tonumber((itemText or ""):match("item:(%d+)")) or tonumber(trim(itemText))
     if not itemID or itemID < 1 or itemID > 99999999 then return false, "Enter an item link or item ID." end
@@ -136,6 +187,7 @@ events:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_LEVEL_UP" then
         ET:SchedulePublish()
+        ET:ScheduleSimCPublish()
     end
 end)
 events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")

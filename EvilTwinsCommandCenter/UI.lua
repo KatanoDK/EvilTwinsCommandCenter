@@ -107,6 +107,7 @@ function UI:Create()
             ET.Comm:Publish(ET:CaptureSelf())
         else
             ET.db.settings.shareSimC = false
+            ET.db.simcProfiles[ET.key] = nil
             UI.simcCheck:SetChecked(false)
             ET.Comm:Revoke()
         end
@@ -116,7 +117,7 @@ function UI:Create()
 
     local simc = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
     simc:SetPoint("LEFT", share, "RIGHT", 250, 0)
-    simc.Text:SetText("Allow guild SimC requests (equipped gear only)")
+    simc.Text:SetText("Share SimC with guild cache (equipped gear only)")
     simc:SetChecked(ET.db.settings.shareSimC)
     simc:SetScript("OnClick", function(self)
         if self:GetChecked() and not ET.db.settings.shareProfile then
@@ -125,7 +126,13 @@ function UI:Create()
             return
         end
         ET.db.settings.shareSimC = self:GetChecked() and true or false
-        if not ET.db.settings.shareSimC then ET.Comm:CancelTransfers("P") end
+        if ET.db.settings.shareSimC then
+            ET:ScheduleSimCPublish()
+        else
+            ET.db.simcProfiles[ET.key] = nil
+            ET.Comm:RevokeSimC()
+        end
+        UI:Refresh()
     end)
     self.simcCheck = simc
 
@@ -180,20 +187,34 @@ function UI:Create()
     end)
     talentButton:SetPoint("TOPLEFT", 6, -77)
     self.talentButton = talentButton
-    local simcButton = button(detail, "Request SimC", 150, 25, function()
+    local simcButton = button(detail, "View last SimC", 140, 25, function()
+        local snapshot = ET.db.characters[UI.selected]
+        if not snapshot then return end
+        local entry = ET:GetCachedSimC(UI.selected, snapshot.guid)
+        if entry then UI:ShowCopy("SimC: " .. UI.selected .. " (" .. date("%Y-%m-%d %H:%M", entry.updated) .. ")", entry.profile) end
+    end)
+    simcButton:SetPoint("LEFT", talentButton, "RIGHT", 10, 0)
+    self.simcButton = simcButton
+
+    local refreshSimc = button(detail, "Request fresh", 140, 25, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         if UI.selected == ET.key then
             local profile, err = ET:GetSimCProfile()
-            if profile then UI:ShowCopy("My SimC profile", profile) else ET:Print(err) end
+            if profile then
+                local saved = ET:StoreSimC(ET.key, snapshot.guid, time(), profile)
+                UI:ShowCopy("My SimC profile", profile)
+                if saved and ET.db.settings.shareSimC then ET.Comm:PublishSimC() end
+                if not saved then ET:Print("This SimC profile is too large to cache or share.") end
+            else ET:Print(err) end
         elseif ET.Comm:RequestSimC(UI.selected, snapshot.guid) then
             ET:Print("Requested a SimC profile from " .. UI.selected .. ". They must be online and sharing it.")
         else
             ET:Print("That character is not currently available for requests.")
         end
     end)
-    simcButton:SetPoint("LEFT", talentButton, "RIGHT", 10, 0)
-    self.simcButton = simcButton
+    refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 10, 0)
+    self.refreshSimcButton = refreshSimc
 
     local gearHeading = label(detail, "EQUIPPED GEAR", "GameFontNormal")
     gearHeading:SetPoint("TOPLEFT", 6, -119)
@@ -284,7 +305,7 @@ function UI:Create()
         self.wishRows[index] = row
     end
 
-    local footer = label(frame, "Published profiles are shared with guildmates who have this addon. SimC requests are separate.", "GameFontHighlightSmall")
+    local footer = label(frame, "Shared SimC is cached by online guildmates, then available after you log off.", "GameFontHighlightSmall")
     footer:SetPoint("BOTTOMLEFT", 23, 20)
     frame:SetScript("OnShow", function() UI:Refresh() end)
 end
@@ -336,9 +357,12 @@ function UI:RefreshDetail()
     local isSelf = self.selected == ET.key
     self.heading:SetText(snapshot.name .. "-" .. snapshot.realm)
     self.summary:SetText((snapshot.spec or "") .. "  •  Level " .. snapshot.level .. "  •  " .. snapshot.itemLevel .. " equipped ilvl")
-    self.timestamp:SetText("Snapshot: " .. date("%Y-%m-%d %H:%M", snapshot.updated))
     self.talentButton:SetEnabled(snapshot.talent ~= "")
-    self.simcButton:SetText(isSelf and "My SimC profile" or "Request SimC")
+    local cached = ET:GetCachedSimC(self.selected, snapshot.guid)
+    self.simcButton:SetEnabled(cached ~= nil)
+    self.timestamp:SetText("Snapshot: " .. date("%Y-%m-%d %H:%M", snapshot.updated)
+        .. (cached and ("    SimC: " .. date("%Y-%m-%d %H:%M", cached.updated)) or "    SimC: none cached"))
+    self.refreshSimcButton:SetText(isSelf and "Generate SimC" or "Request fresh")
     for index, row in ipairs(self.gearRows) do
         local link = snapshot.gear[index]
         row.link = link

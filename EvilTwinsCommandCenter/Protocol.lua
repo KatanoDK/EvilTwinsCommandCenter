@@ -115,3 +115,17 @@ function Protocol:DecodeSnapshot(data)
     end
     return snapshot
 end
+
+function Protocol:EncodeSimC(guid, updated, profile)
+    return self:Pack({ "1", guid, updated, profile })
+end
+
+function Protocol:DecodeSimC(data)
+    local fields = self:Unpack(data, 4)
+    if not fields or #fields ~= 4 or fields[1] ~= "1" then return nil end
+    local updated = tonumber(fields[3])
+    if #fields[2] == 0 or #fields[2] > 64 or not updated or updated <= 0
+        or #fields[4] == 0 or #fields[4] > 89000 then return nil end
+    if not fields[4]:find("^#") and not fields[4]:find("^%a+=[^\n]+") then return nil end
+    return fields[2], updated, fields[4]
+end
