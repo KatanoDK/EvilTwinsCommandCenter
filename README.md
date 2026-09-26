@@ -42,7 +42,7 @@ The addon uses Blizzard's guild and whisper addon-message channels. Guild reques
 
 For private testing, run `python scripts/package_addon.py`. It creates `dist/EvilTwinsCommandCenter-0.1.0.zip` containing the installable addon folder and a build manifest. Send that ZIP directly to a guildmate through your private guild channel; they can extract its `EvilTwinsCommandCenter` folder into their Retail `Interface/AddOns` folder. No GitHub account is needed for a ZIP you send them. Packaging does not install the addon or touch a WoW folder.
 
-See [the updater proposal](docs/UPDATER.md) for private automatic distribution. The updater is not implemented yet.
+The [Windows updater](docs/UPDATER.md) supports public downloads without a GitHub login. Choose a Retail folder once, click **Check / update now**, or leave automatic checks enabled. It updates this addon while WoW is closed and preserves SavedVariables. Each successful push publishes a new development build in [Releases](https://github.com/KatanoDK/EvilTwinsCommandCenter/releases).
 
 Lua syntax and crafting protocol checks can be run with `python tests/test_crafting.py` after installing the `lupa` Python package. These use mocked WoW APIs and do not replace an in-game UI and network test.
 

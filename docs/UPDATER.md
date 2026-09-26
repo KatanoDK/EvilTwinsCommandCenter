@@ -1,26 +1,35 @@
-# Private addon updater proposal
+# Evil Twins Windows updater
 
-The addon stays at version `0.1.0` while it is being tested. A separate build identifier (the Git commit SHA) lets an updater distinguish new builds even when the addon version does not change. `scripts/package_addon.py` includes both values in `build.json` inside the test ZIP.
+The addon stays at version `0.1.0` while it is being tested. Git commit IDs identify individual builds, so the updater detects new code without changing the addon version. The repository and downloadable builds are public. No GitHub login or embedded credential is used.
 
-## Sharing the first tests
+## Install the updater
 
-Package the addon and send the ZIP to a guildmate in a private guild channel. The ZIP contains one `EvilTwinsCommandCenter` folder ready to extract into Retail's `Interface/AddOns`. This needs no distribution service or GitHub account on the tester's side.
+1. Open [Releases](https://github.com/KatanoDK/EvilTwinsCommandCenter/releases) and select the newest development build.
+2. Download `EvilTwinsUpdater-win-x64.zip`, extract it, and run `EvilTwinsUpdater.exe`. It includes its own .NET runtime and targets Windows x64.
+3. Click **Choose folder** and select WoW's `_retail_` folder containing `Wow.exe`.
+4. Close WoW and click **Check / update now**. The button checks immediately and installs a new build if one is available.
+5. Leave automatic checks enabled for updates every 15 minutes while the app is running. Minimize it to keep it in the system tray. Closing the app stops checks; it does not register a Windows startup task.
 
-## Proposed Windows updater
+The executable is not code-signed. Windows may ask you to confirm its publisher when launching it. The app itself does not update automatically; download a newer updater from Releases when needed.
 
-1. The guildmate selects their Retail installation once.
-2. They sign in to the private download source.
-3. A successful build after each push produces a ZIP and its commit identifier.
-4. The updater checks for a different commit, downloads the ZIP, validates it, and stages the files.
-5. With WoW closed, it backs up and replaces only `Interface/AddOns/EvilTwinsCommandCenter`. The separate `WTF` folder containing SavedVariables is preserved.
-6. The app shows the installed build and update status, with a manual check and rollback option.
+## Installation and recovery
 
-This requires a separate desktop app: the WoW addon itself does not download and install its own files. No updater or installation task is implemented or enabled yet.
+- Only `Interface/AddOns/EvilTwinsCommandCenter` is replaced. Other addons and the `WTF` folder containing saved data are preserved.
+- If WoW is running, installation waits until the next automatic check after it closes. You can also click **Check / update now** after closing the game.
+- The downloaded archive must match GitHub's SHA-256 asset digest and its published commit. Unexpected paths, oversized files, inconsistent versions, and incomplete packages are rejected before replacement.
+- One previous installation is kept in `Interface/AddOns/.EvilTwinsCommandCenter-backup`. **Restore previous build** swaps it back and disables automatic updates so the restored build stays installed.
+- **Install ZIP** accepts a clean build produced by `scripts/package_addon.py`, including a ZIP shared directly by a guildmate. It works without a release feed. Local ZIPs use archive validation but have no independently published checksum to verify against.
+- Settings are stored in `%LOCALAPPDATA%/EvilTwinsUpdater/settings.json`. Linked install paths are not supported; choose the physical Retail folder.
 
-## Private downloads
+## Build and test
 
-**GitHub access for each tester:** use the existing private repository and private build assets. Each tester authenticates with their own GitHub account and needs repository access. The app must not bundle the owner's token or a shared repository credential. GitHub documents [private artifact downloads](https://docs.github.com/en/rest/actions/artifacts) and [authenticated release asset downloads](https://docs.github.com/en/rest/releases/assets).
+With the .NET 10 SDK:
 
-**Guild accounts without repository access:** use a small authenticated download service in front of private storage. Members sign in through the guild's chosen identity provider, and the service grants download access to approved guild members. This requires hosting and access management, but avoids giving every member repository access.
+```powershell
+dotnet run --project updater/EvilTwinsUpdater.Tests/EvilTwinsUpdater.Tests.csproj -c Release -- .test-work/install-tests
+dotnet publish updater/EvilTwinsUpdater/EvilTwinsUpdater.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=embedded -o dist/updater
+```
 
-Start with the ZIP for a two-person in-game test. Choose the sign-in model before implementing the updater; it determines whether we can use GitHub directly or need the download service.
+The tests use generated fake Retail folders under the selected test workspace. They cover updates, rollback, preservation of other addons and saved data, game-running gates, archive path validation, commit checks, public release selection, and download checksums. They never install into a real WoW folder.
+
+`.github/workflows/build-release.yml` runs the Lua and updater tests on each push to `master`, packages the addon, builds the Windows updater, and publishes a development release tagged `build-<full commit SHA>`. Releases are marked prerelease because the addon still needs in-game testing. The app reads these build releases directly rather than GitHub's latest stable release endpoint. All downloads are publicly accessible; see [GitHub's asset API](https://docs.github.com/en/rest/releases/assets).
