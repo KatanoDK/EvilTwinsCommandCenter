@@ -10,6 +10,10 @@ local function bagCount()
     return 1 + (NUM_TOTAL_EQUIPPED_BAG_SLOTS or 5)
 end
 
+function Inventory:BagCount()
+    return bagCount()
+end
+
 local function sameItems(a, b)
     if not a or #a ~= #b then return false end
     for index, item in ipairs(a) do
@@ -51,7 +55,6 @@ function Inventory:ScanBag(bagID, publish)
     local guid = UnitGUID("player")
     local entry = self:Get(ET.key, guid)
     local previous = entry and entry.containers[bagID]
-    if slots <= 0 and not previous then return end
     local items = {}
     for slot = 1, slots do
         local itemID = C_Container.GetContainerItemID(bagID, slot)

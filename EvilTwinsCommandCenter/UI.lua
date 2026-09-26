@@ -71,6 +71,217 @@ function UI:ShowCopy(title, text)
     self.copyFrame.edit:HighlightText()
 end
 
+function UI:CreatePrepFrame()
+    if self.prepFrame then return end
+    local frame = CreateFrame("Frame", "EvilTwinsCCPrepFrame", UIParent, "BackdropTemplate")
+    frame:SetSize(850, 510)
+    frame:SetPoint("CENTER")
+    frame:SetFrameStrata("DIALOG")
+    frame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        edgeSize = 24,
+        insets = { left = 6, right = 6, top = 6, bottom = 6 },
+    })
+    frame:EnableMouse(true)
+    frame:SetMovable(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:Hide()
+    label(frame, "RAID PREP SUPPLY SETTINGS", "GameFontNormalLarge"):SetPoint("TOPLEFT", 24, -22)
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", -4, -4)
+    label(frame, "Saved on this officer's installation.", "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -52)
+    label(frame, "Acceptable item IDs are alternatives; the minimum counts all matching items in carried bags.",
+        "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -78)
+    label(frame, "Supply", "GameFontNormal"):SetPoint("TOPLEFT", 25, -109)
+    label(frame, "Acceptable item IDs, separated by commas", "GameFontNormal"):SetPoint("TOPLEFT", 225, -109)
+    label(frame, "Minimum", "GameFontNormal"):SetPoint("TOPLEFT", 725, -109)
+    self.prepFields = {}
+    for index, category in ipairs(ET.RaidPrep.categories) do
+        local y = -138 - (index - 1) * 52
+        label(frame, category.label, "GameFontHighlight"):SetPoint("TOPLEFT", 25, y - 6)
+        local ids = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+        ids:SetSize(460, 25)
+        ids:SetPoint("TOPLEFT", 233, y)
+        ids:SetAutoFocus(false)
+        ids:SetScript("OnEscapePressed", ids.ClearFocus)
+        local minimum = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+        minimum:SetSize(65, 25)
+        minimum:SetPoint("TOPLEFT", 734, y)
+        minimum:SetAutoFocus(false)
+        minimum:SetScript("OnEscapePressed", minimum.ClearFocus)
+        self.prepFields[category.key] = { ids = ids, minimum = minimum }
+    end
+    local save = button(frame, "Save settings", 150, 27, function()
+        local values = {}
+        for _, category in ipairs(ET.RaidPrep.categories) do
+            local row = UI.prepFields[category.key]
+            values[category.key] = { ids = row.ids:GetText(), minimum = row.minimum:GetText() }
+        end
+        local ok, err = ET.RaidPrep:SaveChecklist(values)
+        if not ok then ET:Print(err); return end
+        frame:Hide()
+        ET:Print("Raid prep supply settings saved.")
+    end)
+    save:SetPoint("BOTTOMRIGHT", -25, 24)
+    self.prepFrame = frame
+end
+
+function UI:ShowPrepSettings()
+    self:CreatePrepFrame()
+    for _, category in ipairs(ET.RaidPrep.categories) do
+        local entry = ET.db.prepChecklist[category.key]
+        local row = self.prepFields[category.key]
+        row.ids:SetText(table.concat(entry.ids, ", "))
+        row.minimum:SetText(tostring(entry.minimum))
+    end
+    self.prepFrame:Show()
+end
+
+local function prepStatus(count, unknown)
+    if count > 0 then return tostring(count) .. " missing" end
+    return unknown > 0 and "Unknown" or "OK"
+end
+
+local function setPrepStatus(widget, value)
+    widget:SetText(value)
+    if value == "OK" then
+        widget:SetTextColor(0.4, 1, 0.5)
+    elseif value == "Unknown" or value == "Stale" or value == "No data" then
+        widget:SetTextColor(1, 0.8, 0.35)
+    elseif value == "Not set" or value == "—" then
+        widget:SetTextColor(0.65, 0.65, 0.65)
+    else
+        widget:SetTextColor(1, 0.4, 0.4)
+    end
+end
+
+function UI:CreateOverviewFrame()
+    if self.overviewFrame then return end
+    local frame = CreateFrame("Frame", "EvilTwinsCCOverviewFrame", UIParent, "BackdropTemplate")
+    frame:SetSize(900, 620)
+    frame:SetPoint("CENTER")
+    frame:SetFrameStrata("DIALOG")
+    frame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        edgeSize = 24,
+        insets = { left = 6, right = 6, top = 6, bottom = 6 },
+    })
+    frame:EnableMouse(true)
+    frame:SetMovable(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:Hide()
+    self.overviewFrame = frame
+    label(frame, "GUILD RAID PREP", "GameFontNormalLarge"):SetPoint("TOPLEFT", 24, -22)
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", -4, -4)
+    local settings = button(frame, "Supply settings", 140, 25, function() UI:ShowPrepSettings() end)
+    settings:SetPoint("TOPRIGHT", -40, -18)
+    label(frame, "Last shared state. Click a character for the exact missing slots and items.",
+        "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -55)
+    local columns = {
+        { "Character", 25 }, { "Gear", 200 }, { "Enchants", 278 },
+        { "Gems", 373 }, { "Repairs", 453 }, { "Supplies", 543 },
+        { "Captured", 673 },
+    }
+    for _, column in ipairs(columns) do
+        label(frame, column[1], "GameFontNormal"):SetPoint("TOPLEFT", column[2], -91)
+    end
+    local scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 23, -119)
+    scroll:SetPoint("BOTTOMRIGHT", -39, 26)
+    local child = CreateFrame("Frame", nil, scroll)
+    child:SetWidth(835)
+    child:SetHeight(1)
+    scroll:SetScrollChild(child)
+    self.overviewChild = child
+    self.overviewRows = {}
+    frame:RegisterEvent("GUILD_ROSTER_UPDATE")
+    frame:SetScript("OnEvent", function() UI:RefreshOverview() end)
+end
+
+function UI:RefreshOverview()
+    if not self.overviewFrame or not self.overviewFrame:IsShown() then return end
+    local entries, seen, lookup = {}, {}, {}
+    for key, snapshot in pairs(ET.db.characters) do
+        lookup[key:lower():gsub("%s+", "")] = { key = key, snapshot = snapshot }
+    end
+    local guildCount = IsInGuild() and GetNumGuildMembers() or 0
+    if guildCount > 0 then
+        local realm = GetNormalizedRealmName() or GetRealmName()
+        for index = 1, guildCount do
+            local name = GetGuildRosterInfo(index)
+            if name then
+                local fullName = name:find("-", 1, true) and name or (name .. "-" .. realm)
+                local normalized = fullName:lower():gsub("%s+", "")
+                if not seen[normalized] then
+                    local saved = lookup[normalized]
+                    entries[#entries + 1] = saved or { key = fullName }
+                    seen[normalized] = true
+                end
+            end
+        end
+    else
+        for _, saved in pairs(lookup) do entries[#entries + 1] = saved end
+    end
+    table.sort(entries, function(a, b) return a.key:lower() < b.key:lower() end)
+    for index, entry in ipairs(entries) do
+        local row = self.overviewRows[index]
+        if not row then
+            row = CreateFrame("Button", nil, self.overviewChild)
+            row:SetSize(830, 30)
+            row.labels = {}
+            for column, x in ipairs({ 2, 177, 255, 350, 430, 520, 650 }) do
+                row.labels[column] = label(row, "", "GameFontHighlightSmall")
+                row.labels[column]:SetPoint("LEFT", x, 0)
+                row.labels[column]:SetWidth(({ 165, 70, 87, 72, 82, 120, 170 })[column])
+            end
+            row:SetScript("OnClick", function(self)
+                if not self.snapshot then return end
+                local inventory = ET.Inventory:Get(self.key, self.snapshot.guid)
+                UI:ShowCopy("Raid prep: " .. self.key, ET.RaidPrep:Report(self.snapshot, inventory))
+            end)
+            self.overviewRows[index] = row
+        end
+        row.key, row.snapshot = entry.key, entry.snapshot
+        row:SetPoint("TOPLEFT", 0, -(index - 1) * 31)
+        row.labels[1]:SetText(entry.key)
+        if entry.snapshot then
+            local inventory = ET.Inventory:Get(entry.key, entry.snapshot.guid)
+            local result = ET.RaidPrep:Analyze(entry.snapshot, inventory)
+            setPrepStatus(row.labels[2], prepStatus(result.missingGear, 0))
+            setPrepStatus(row.labels[3], prepStatus(result.missingEnchants, result.unknownEnchants))
+            setPrepStatus(row.labels[4], prepStatus(result.emptySockets, result.unknownSockets))
+            setPrepStatus(row.labels[5], prepStatus(result.repairCount, result.unknownDurability))
+            local supplies = result.supplyUnknown and "Unknown"
+                or result.bagStale and result.configuredSupplies > 0 and "Stale"
+                or #result.supplyIssues > 0 and (#result.supplyIssues .. " short")
+                or result.configuredSupplies == 0 and "Not set"
+                or "OK"
+            setPrepStatus(row.labels[6], supplies)
+            row.labels[7]:SetText(date("%m/%d %H:%M", entry.snapshot.updated))
+        else
+            setPrepStatus(row.labels[2], "No data")
+            for column = 3, 7 do setPrepStatus(row.labels[column], "—") end
+        end
+        row:Show()
+    end
+    for index = #entries + 1, #self.overviewRows do self.overviewRows[index]:Hide() end
+    self.overviewChild:SetHeight(math.max(1, #entries * 31))
+end
+
+function UI:ShowOverview()
+    self:CreateOverviewFrame()
+    if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+    self.overviewFrame:Show()
+    self:RefreshOverview()
+end
+
 function UI:Create()
     if self.frame then return end
     local frame = CreateFrame("Frame", "EvilTwinsCCFrame", UIParent, "BackdropTemplate")
@@ -93,6 +304,8 @@ function UI:Create()
 
     local title = label(frame, "EVIL TWINS  /  COMMAND CENTER", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 23, -20)
+    local overview = button(frame, "Guild raid prep", 150, 25, function() UI:ShowOverview() end)
+    overview:SetPoint("TOPLEFT", 340, -18)
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
 
@@ -250,14 +463,25 @@ function UI:Create()
     bagButton:SetPoint("LEFT", refreshSimc, "RIGHT", 10, 0)
     self.bagButton = bagButton
 
+    local prepButton = button(detail, "Raid prep report", 150, 25, function()
+        local snapshot = ET.db.characters[UI.selected]
+        if not snapshot then return end
+        local inventory = ET.Inventory:Get(UI.selected, snapshot.guid)
+        UI:ShowCopy("Raid prep: " .. UI.selected, ET.RaidPrep:Report(snapshot, inventory))
+    end)
+    prepButton:SetPoint("TOPLEFT", 6, -111)
+    self.prepButton = prepButton
+    local prepSettings = button(detail, "Prep settings", 130, 25, function() UI:ShowPrepSettings() end)
+    prepSettings:SetPoint("LEFT", prepButton, "RIGHT", 10, 0)
+
     local gearHeading = label(detail, "EQUIPPED GEAR", "GameFontNormal")
-    gearHeading:SetPoint("TOPLEFT", 6, -119)
+    gearHeading:SetPoint("TOPLEFT", 6, -157)
     for index, slot in ipairs(ET.slots) do
         local column = (index - 1) >= 10 and 1 or 0
         local rowIndex = column == 0 and index - 1 or index - 11
         local row = CreateFrame("Button", nil, detail)
         row:SetSize(305, 25)
-        row:SetPoint("TOPLEFT", 6 + column * 312, -145 - rowIndex * 26)
+        row:SetPoint("TOPLEFT", 6 + column * 312, -183 - rowIndex * 26)
         row.slot = label(row, slot[2], "GameFontHighlightSmall")
         row.slot:SetPoint("LEFT", 0, 0)
         row.slot:SetWidth(82)
@@ -280,14 +504,14 @@ function UI:Create()
     end
 
     local wishHeading = label(detail, "GEAR WISHLIST", "GameFontNormal")
-    wishHeading:SetPoint("TOPLEFT", 6, -425)
+    wishHeading:SetPoint("TOPLEFT", 6, -463)
     local emptyWish = label(detail, "No items added yet.", "GameFontHighlightSmall")
-    emptyWish:SetPoint("TOPLEFT", 6, -458)
+    emptyWish:SetPoint("TOPLEFT", 6, -496)
     self.emptyWish = emptyWish
 
     local itemInput = CreateFrame("EditBox", nil, detail, "InputBoxTemplate")
     itemInput:SetSize(188, 24)
-    itemInput:SetPoint("TOPLEFT", 14, -454)
+    itemInput:SetPoint("TOPLEFT", 14, -492)
     itemInput:SetAutoFocus(false)
     itemInput:SetScript("OnEscapePressed", itemInput.ClearFocus)
     self.itemInput = itemInput
@@ -422,13 +646,13 @@ function UI:RefreshDetail()
             row.item:SetText(itemName or ("Item #" .. wish.id))
             row.note:SetText(wish.note or "")
             row.remove:SetShown(isSelf)
-            row:SetPoint("TOPLEFT", 6, -(isSelf and 490 or 458) - (index - 1) * 25)
+            row:SetPoint("TOPLEFT", 6, -(isSelf and 528 or 496) - (index - 1) * 25)
             row:Show()
         else
             row:Hide()
         end
     end
-    self.detail:SetHeight(math.max(550, (isSelf and 510 or 478) + #wishlist * 25))
+    self.detail:SetHeight(math.max(590, (isSelf and 548 or 516) + #wishlist * 25))
 end
 
 function UI:Refresh()
@@ -438,6 +662,7 @@ function UI:Refresh()
     self.bagCheck:SetChecked(ET.db.settings.shareInventory)
     self:RefreshRoster()
     self:RefreshDetail()
+    self:RefreshOverview()
 end
 
 function UI:Toggle()

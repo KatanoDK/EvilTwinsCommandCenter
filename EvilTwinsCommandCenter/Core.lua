@@ -1,6 +1,6 @@
 local addonName, ET = ...
 ET.name = addonName
-ET.version = "0.3.0"
+ET.version = "0.4.0"
 ET.slots = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 4, "Shirt" },
     { 5, "Chest" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
@@ -37,6 +37,7 @@ function ET:InitDB()
     self.db = db
     self.key = self:PlayerKey()
     if type(db.wishlists[self.key]) ~= "table" then db.wishlists[self.key] = {} end
+    self.RaidPrep:InitDB()
 end
 
 function ET:CaptureSelf()
@@ -57,8 +58,12 @@ function ET:CaptureSelf()
     end
     local equipped = select(2, GetAverageItemLevel()) or 0
     local gear = {}
+    local durability = {}
     for index, slot in ipairs(self.slots) do
         gear[index] = GetInventoryItemLink("player", slot[1]) or ""
+        local current, maximum = GetInventoryItemDurability(slot[1])
+        durability[index] = current and maximum and maximum > 0
+            and math.floor(current * 100 / maximum + 0.5) or -1
     end
     local snapshot = {
         guid = UnitGUID("player") or "",
@@ -72,6 +77,7 @@ function ET:CaptureSelf()
         updated = time(),
         talent = talentString,
         gear = gear,
+        durability = durability,
         wishlist = self.db.wishlists[self.key],
     }
     self.db.characters[self.key] = snapshot
@@ -189,7 +195,9 @@ events:SetScript("OnEvent", function(_, event, ...)
         return
     end
     if event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
-        or event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_LEVEL_UP" then
+        or event == "TRAIT_CONFIG_UPDATED" or event == "PLAYER_LEVEL_UP"
+        or event == "UPDATE_INVENTORY_DURABILITY"
+        or (event == "UNIT_INVENTORY_CHANGED" and ... == "player") then
         ET:SchedulePublish()
         ET:ScheduleSimCPublish()
     end
@@ -198,6 +206,8 @@ events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 events:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 events:RegisterEvent("TRAIT_CONFIG_UPDATED")
 events:RegisterEvent("PLAYER_LEVEL_UP")
+events:RegisterEvent("UPDATE_INVENTORY_DURABILITY")
+events:RegisterEvent("UNIT_INVENTORY_CHANGED")
 
 SLASH_EVILTWINSCC1 = "/etcc"
 SLASH_EVILTWINSCC2 = "/eviltwins"
@@ -212,7 +222,8 @@ SlashCmdList.EVILTWINSCC = function(input)
         local bagGUID, bagID, _, bagItems = ET.Protocol:DecodeBag(
             ET.Protocol:EncodeBag(snapshot.guid, 0, time(), bagSample))
         if decoded and decoded.guid == snapshot.guid and decoded.talent == snapshot.talent
-            and #decoded.gear == #ET.slots and bagGUID == snapshot.guid and bagID == 0
+            and #decoded.gear == #ET.slots and decoded.durability[1] == snapshot.durability[1]
+            and bagGUID == snapshot.guid and bagID == 0
             and bagItems and bagItems[1] and bagItems[1].link == bagSample[1].link then
             ET:Print("Snapshot, bags, and transfer encoding passed. SimulationCraft API: "
                 .. ((_G.SimulationcraftAPI and "available") or "not installed"))

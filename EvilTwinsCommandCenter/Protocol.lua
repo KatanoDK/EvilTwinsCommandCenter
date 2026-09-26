@@ -70,7 +70,7 @@ end
 
 function Protocol:EncodeSnapshot(snapshot)
     local fields = {
-        "1", snapshot.guid, snapshot.name, snapshot.realm, snapshot.class,
+        "2", snapshot.guid, snapshot.name, snapshot.realm, snapshot.class,
         snapshot.specID, snapshot.spec, snapshot.level, snapshot.itemLevel,
         snapshot.updated, snapshot.talent, #snapshot.wishlist,
     }
@@ -81,21 +81,25 @@ function Protocol:EncodeSnapshot(snapshot)
     for index = 1, #ET.slots do
         fields[#fields + 1] = snapshot.gear[index] or ""
     end
+    for index = 1, #ET.slots do
+        fields[#fields + 1] = snapshot.durability and snapshot.durability[index] or -1
+    end
     return self:Pack(fields)
 end
 
 function Protocol:DecodeSnapshot(data)
-    local fields = self:Unpack(data, 12 + 40 + #ET.slots)
-    if not fields or fields[1] ~= "1" then return nil end
+    local fields = self:Unpack(data, 12 + 40 + #ET.slots * 2)
+    if not fields or (fields[1] ~= "1" and fields[1] ~= "2") then return nil end
     local wishCount = tonumber(fields[12])
     if not wishCount or wishCount < 0 or wishCount > 20 then return nil end
-    if #fields ~= 12 + wishCount * 2 + #ET.slots then return nil end
+    local expected = 12 + wishCount * 2 + #ET.slots * (fields[1] == "2" and 2 or 1)
+    if #fields ~= expected then return nil end
     local snapshot = {
         guid = fields[2], name = fields[3], realm = fields[4], class = fields[5],
         specID = tonumber(fields[6]) or 0, spec = fields[7],
         level = tonumber(fields[8]) or 0, itemLevel = tonumber(fields[9]) or 0,
         updated = tonumber(fields[10]) or 0, talent = fields[11],
-        wishlist = {}, gear = {},
+        wishlist = {}, gear = {}, durability = {},
     }
     if #snapshot.guid > 64 or #snapshot.name > 64 or #snapshot.realm > 64
         or #snapshot.spec > 80 or #snapshot.talent > 3000 then return nil end
@@ -112,6 +116,14 @@ function Protocol:DecodeSnapshot(data)
         if #link > 1000 then return nil end
         snapshot.gear[index] = link
         position = position + 1
+    end
+    if fields[1] == "2" then
+        for index = 1, #ET.slots do
+            local value = tonumber(fields[position])
+            if not value or value < -1 or value > 100 then return nil end
+            snapshot.durability[index] = value
+            position = position + 1
+        end
     end
     return snapshot
 end
