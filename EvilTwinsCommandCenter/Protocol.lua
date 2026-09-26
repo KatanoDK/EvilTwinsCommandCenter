@@ -102,7 +102,8 @@ function Protocol:DecodeSnapshot(data)
         wishlist = {}, gear = {}, durability = {},
     }
     if #snapshot.guid > 64 or #snapshot.name > 64 or #snapshot.realm > 64
-        or #snapshot.spec > 80 or #snapshot.talent > 3000 then return nil end
+        or #snapshot.spec > 80 or #snapshot.talent > 3000
+        or snapshot.updated <= 0 or snapshot.updated > time() + 300 then return nil end
     local position = 13
     for _ = 1, wishCount do
         local id = tonumber(fields[position])

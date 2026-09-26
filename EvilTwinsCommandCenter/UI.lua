@@ -130,6 +130,7 @@ function UI:CreatePrepFrame()
 end
 
 function UI:ShowPrepSettings()
+    if not ET:CanUseLeaderTools() then return end
     self:CreatePrepFrame()
     for _, category in ipairs(ET.RaidPrep.categories) do
         local entry = ET.db.prepChecklist[category.key]
@@ -182,8 +183,18 @@ function UI:CreateOverviewFrame()
     close:SetPoint("TOPRIGHT", -4, -4)
     local settings = button(frame, "Supply settings", 140, 25, function() UI:ShowPrepSettings() end)
     settings:SetPoint("TOPRIGHT", -40, -18)
+    local refresh = button(frame, "Refresh guild gear", 160, 25, function()
+        local ok, err = ET.Comm:RequestGuildGear()
+        if not ok then ET:Print(err); return end
+        UI.overviewRequestedAt = time()
+        UI:RefreshOverview()
+        ET:Print("Refreshing gear from online guildmates with the addon.")
+    end)
+    refresh:SetPoint("RIGHT", settings, "LEFT", -10, 0)
     label(frame, "Last shared state. Click a character for the exact missing slots and items.",
         "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -55)
+    self.overviewRefreshStatus = label(frame, "", "GameFontHighlightSmall")
+    self.overviewRefreshStatus:SetPoint("TOPLEFT", 25, -74)
     local columns = {
         { "Character", 25 }, { "Gear", 200 }, { "Enchants", 278 },
         { "Gems", 373 }, { "Repairs", 453 }, { "Supplies", 543 },
@@ -207,6 +218,7 @@ end
 
 function UI:RefreshOverview()
     if not self.overviewFrame or not self.overviewFrame:IsShown() then return end
+    if not ET:CanUseLeaderTools() then self.overviewFrame:Hide(); return end
     local entries, seen, lookup = {}, {}, {}
     for key, snapshot in pairs(ET.db.characters) do
         lookup[key:lower():gsub("%s+", "")] = { key = key, snapshot = snapshot }
@@ -230,6 +242,18 @@ function UI:RefreshOverview()
         for _, saved in pairs(lookup) do entries[#entries + 1] = saved end
     end
     table.sort(entries, function(a, b) return a.key:lower() < b.key:lower() end)
+    if self.overviewRequestedAt then
+        local refreshed = 0
+        for _, entry in ipairs(entries) do
+            if entry.snapshot and entry.snapshot.updated >= self.overviewRequestedAt then
+                refreshed = refreshed + 1
+            end
+        end
+        self.overviewRefreshStatus:SetText("Refresh requested " .. date("%H:%M:%S", self.overviewRequestedAt)
+            .. "  •  " .. refreshed .. " fresh snapshot(s) received")
+    else
+        self.overviewRefreshStatus:SetText("Online members with the addon respond automatically to refresh.")
+    end
     for index, entry in ipairs(entries) do
         local row = self.overviewRows[index]
         if not row then
@@ -276,6 +300,10 @@ function UI:RefreshOverview()
 end
 
 function UI:ShowOverview()
+    if not ET:CanUseLeaderTools() then
+        ET:Print("Your guild rank does not have access to leader tools.")
+        return
+    end
     self:CreateOverviewFrame()
     if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
     self.overviewFrame:Show()
@@ -306,108 +334,47 @@ function UI:Create()
     title:SetPoint("TOPLEFT", 23, -20)
     local overview = button(frame, "Guild raid prep", 150, 25, function() UI:ShowOverview() end)
     overview:SetPoint("TOPLEFT", 340, -18)
+    self.overviewButton = overview
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
 
-    local share = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    share:SetPoint("TOPLEFT", 22, -52)
-    share.Text:SetText("Share my gear, build, and wishlist")
-    share:SetChecked(ET.db.settings.shareProfile)
-    share:SetScript("OnClick", function(self)
-        local enabled = self:GetChecked() and true or false
-        ET.db.settings.shareProfile = enabled
-        if enabled then
-            ET.Comm:Publish(ET:CaptureSelf())
-        else
-            ET.db.settings.shareSimC = false
-            ET.db.settings.shareInventory = false
-            ET.db.simcProfiles[ET.key] = nil
-            ET.db.inventory[ET.key] = nil
-            UI.simcCheck:SetChecked(false)
-            UI.bagCheck:SetChecked(false)
-            ET.Comm:Revoke()
-        end
-        UI:Refresh()
-    end)
-    self.shareCheck = share
-
-    local simc = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    simc:SetPoint("LEFT", share, "RIGHT", 250, 0)
-    simc.Text:SetText("Share SimC export with guild cache")
-    simc:SetChecked(ET.db.settings.shareSimC)
-    simc:SetScript("OnClick", function(self)
-        if self:GetChecked() and not ET.db.settings.shareProfile then
-            self:SetChecked(false)
-            ET:Print("Enable profile sharing first.")
-            return
-        end
-        ET.db.settings.shareSimC = self:GetChecked() and true or false
-        if ET.db.settings.shareSimC then
-            ET:ScheduleSimCPublish()
-        else
-            ET.db.simcProfiles[ET.key] = nil
-            ET.Comm:RevokeSimC()
-        end
-        UI:Refresh()
-    end)
-    self.simcCheck = simc
-
-    local bags = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    bags:SetPoint("TOPLEFT", 22, -82)
-    bags.Text:SetText("Share my bags with guildmates")
-    bags:SetChecked(ET.db.settings.shareInventory)
-    bags:SetScript("OnClick", function(self)
-        if self:GetChecked() and not ET.db.settings.shareProfile then
-            self:SetChecked(false)
-            ET:Print("Enable profile sharing first.")
-            return
-        end
-        ET.db.settings.shareInventory = self:GetChecked() and true or false
-        if ET.db.settings.shareInventory then
-            ET.Inventory:CaptureBags(false)
-            ET.Comm:PublishBags()
-        else
-            ET.db.inventory[ET.key] = nil
-            ET.Comm:RevokeBags()
-        end
-        UI:Refresh()
-    end)
-    self.bagCheck = bags
-
     local search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
     search:SetSize(236, 26)
-    search:SetPoint("TOPLEFT", 29, -126)
+    search:SetPoint("TOPLEFT", 29, -65)
     search:SetAutoFocus(false)
     search:SetScript("OnEscapePressed", search.ClearFocus)
     search:SetScript("OnTextChanged", function() UI:RefreshRoster() end)
     self.search = search
     local searchHint = label(frame, "Search characters", "GameFontHighlightSmall")
     searchHint:SetPoint("BOTTOMLEFT", search, "TOPLEFT", 0, 2)
+    self.searchHint = searchHint
 
     local rosterScroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    rosterScroll:SetPoint("TOPLEFT", 23, -167)
+    rosterScroll:SetPoint("TOPLEFT", 23, -106)
     rosterScroll:SetPoint("BOTTOMLEFT", 23, 43)
     rosterScroll:SetWidth(256)
     local rosterChild = CreateFrame("Frame", nil, rosterScroll)
     rosterChild:SetWidth(236)
     rosterChild:SetHeight(1)
     rosterScroll:SetScrollChild(rosterChild)
+    self.rosterScroll = rosterScroll
     self.rosterChild = rosterChild
 
     local divider = frame:CreateTexture(nil, "ARTWORK")
     divider:SetColorTexture(0.42, 0.35, 0.58, 0.7)
     divider:SetSize(1, 555)
-    divider:SetPoint("TOPLEFT", 291, -104)
+    divider:SetPoint("TOPLEFT", 291, -53)
+    self.divider = divider
 
     local detailScroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    detailScroll:SetPoint("TOPLEFT", 307, -98)
+    detailScroll:SetPoint("TOPLEFT", 307, -55)
     detailScroll:SetPoint("BOTTOMRIGHT", -34, 44)
+    self.detailScroll = detailScroll
     local detail = CreateFrame("Frame", nil, detailScroll)
     detail:SetWidth(636)
     detail:SetHeight(550)
     detailScroll:SetScrollChild(detail)
     self.detail = detail
-    self.detailScroll = detailScroll
 
     local heading = label(detail, "Select a character", "GameFontNormalLarge")
     heading:SetPoint("TOPLEFT", 6, -6)
@@ -442,11 +409,11 @@ function UI:Create()
             if profile then
                 local saved = ET:StoreSimC(ET.key, snapshot.guid, time(), profile)
                 UI:ShowCopy("My SimC profile", profile)
-                if saved and ET.db.settings.shareSimC then ET.Comm:PublishSimC() end
+                if saved then ET.Comm:PublishSimC() end
                 if not saved then ET:Print("This SimC profile is too large to cache or share.") end
             else ET:Print(err) end
         elseif ET.Comm:RequestSimC(UI.selected, snapshot.guid) then
-            ET:Print("Requested a SimC profile from " .. UI.selected .. ". They must be online and sharing it.")
+            ET:Print("Requested a SimC profile from " .. UI.selected .. ". They must be online with SimulationCraft installed.")
         else
             ET:Print("That character is not currently available for requests.")
         end
@@ -473,6 +440,7 @@ function UI:Create()
     self.prepButton = prepButton
     local prepSettings = button(detail, "Prep settings", 130, 25, function() UI:ShowPrepSettings() end)
     prepSettings:SetPoint("LEFT", prepButton, "RIGHT", 10, 0)
+    self.prepSettingsButton = prepSettings
 
     local gearHeading = label(detail, "EQUIPPED GEAR", "GameFontNormal")
     gearHeading:SetPoint("TOPLEFT", 6, -157)
@@ -563,8 +531,17 @@ function UI:Create()
         self.wishRows[index] = row
     end
 
-    local footer = label(frame, "Shared SimC and bags are cached by online guildmates, then available after you log off.", "GameFontHighlightSmall")
+    local footer = label(frame, "Gear and carried bags sync automatically while the addon is installed.", "GameFontHighlightSmall")
     footer:SetPoint("BOTTOMLEFT", 23, 20)
+    self.footer = footer
+    local memberMessage = label(frame,
+        "Gear and carried bags sync automatically to online leaders. SimC syncs if installed.",
+        "GameFontHighlightSmall")
+    memberMessage:SetPoint("TOPLEFT", 24, -64)
+    local memberRank = label(frame, "Guild browsing and raid prep are for ranks 0–5.", "GameFontHighlightSmall")
+    memberRank:SetPoint("TOPLEFT", 24, -88)
+    self.memberRank = memberRank
+    self.memberMessage = memberMessage
     frame:SetScript("OnShow", function() UI:Refresh() end)
 end
 
@@ -573,7 +550,8 @@ function UI:RefreshRoster()
     local search = self.search:GetText():lower()
     local keys = {}
     for key, snapshot in pairs(ET.db.characters) do
-        if type(snapshot) == "table" and key:lower():find(search, 1, true) then
+        if type(snapshot) == "table" and key:lower():find(search, 1, true)
+            and (key == ET.key or ET:CanUseLeaderTools()) then
             keys[#keys + 1] = key
         end
     end
@@ -610,6 +588,7 @@ end
 
 function UI:RefreshDetail()
     if not self.frame then return end
+    if self.selected ~= ET.key and not ET:CanUseLeaderTools() then self.selected = ET.key end
     local snapshot = ET.db.characters[self.selected]
     if not snapshot then return end
     local isSelf = self.selected == ET.key
@@ -657,9 +636,24 @@ end
 
 function UI:Refresh()
     if not self.frame then return end
-    self.shareCheck:SetChecked(ET.db.settings.shareProfile)
-    self.simcCheck:SetChecked(ET.db.settings.shareSimC)
-    self.bagCheck:SetChecked(ET.db.settings.shareInventory)
+    local isLeader = ET:CanUseLeaderTools()
+    self.overviewButton:SetShown(isLeader)
+    self.prepSettingsButton:SetShown(isLeader)
+    self.frame:SetWidth(isLeader and 990 or 650)
+    self.frame:SetHeight(isLeader and 680 or 135)
+    self.search:SetShown(isLeader)
+    self.searchHint:SetShown(isLeader)
+    self.rosterScroll:SetShown(isLeader)
+    self.divider:SetShown(isLeader)
+    self.detailScroll:SetShown(isLeader)
+    self.footer:SetShown(isLeader)
+    self.memberMessage:SetShown(not isLeader)
+    self.memberRank:SetShown(not isLeader)
+    if not isLeader then
+        if self.overviewFrame then self.overviewFrame:Hide() end
+        if self.prepFrame then self.prepFrame:Hide() end
+        if self.selected ~= ET.key and self.copyFrame then self.copyFrame:Hide() end
+    end
     self:RefreshRoster()
     self:RefreshDetail()
     self:RefreshOverview()

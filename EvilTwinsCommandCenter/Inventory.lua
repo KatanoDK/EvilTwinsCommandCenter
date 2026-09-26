@@ -76,13 +76,11 @@ function Inventory:ScanBag(bagID, publish)
 end
 
 function Inventory:CaptureBags(publish)
-    if not ET.db.settings.shareProfile or not ET.db.settings.shareInventory then return end
     if InCombatLockdown and InCombatLockdown() then return end
     for bagID = 0, bagCount() - 1 do self:ScanBag(bagID, publish) end
 end
 
 function Inventory:ScheduleScan()
-    if not ET.db.settings.shareInventory then return end
     if self.scanTimer then self.scanTimer:Cancel() end
     self.scanTimer = C_Timer.NewTimer(2, function()
         self.scanTimer = nil

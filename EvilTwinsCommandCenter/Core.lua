@@ -1,6 +1,6 @@
 local addonName, ET = ...
 ET.name = addonName
-ET.version = "0.4.0"
+ET.version = "0.5.0"
 ET.slots = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 4, "Shirt" },
     { 5, "Chest" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
@@ -31,9 +31,9 @@ function ET:InitDB()
     if type(db.simcProfiles) ~= "table" then db.simcProfiles = {} end
     if type(db.inventory) ~= "table" then db.inventory = {} end
     if type(db.wishlists) ~= "table" then db.wishlists = {} end
-    if db.settings.shareProfile == nil then db.settings.shareProfile = false end
-    if db.settings.shareSimC == nil then db.settings.shareSimC = false end
-    if db.settings.shareInventory == nil then db.settings.shareInventory = false end
+    db.settings.shareProfile = nil
+    db.settings.shareSimC = nil
+    db.settings.shareInventory = nil
     self.db = db
     self.key = self:PlayerKey()
     if type(db.wishlists[self.key]) ~= "table" then db.wishlists[self.key] = {} end
@@ -90,7 +90,7 @@ function ET:SchedulePublish()
     self.publishTimer = C_Timer.NewTimer(3, function()
         self.publishTimer = nil
         local snapshot = self:CaptureSelf()
-        if snapshot and self.db.settings.shareProfile and self.Comm then
+        if snapshot and self.Comm then
             self.Comm:Publish(snapshot)
         end
     end)
@@ -124,7 +124,6 @@ function ET:StoreSimC(key, guid, updated, profile)
 end
 
 function ET:PublishSelfSimC()
-    if not self.db.settings.shareProfile or not self.db.settings.shareSimC then return end
     if InCombatLockdown and InCombatLockdown() then
         self:ScheduleSimCPublish()
         return
@@ -138,7 +137,6 @@ function ET:PublishSelfSimC()
 end
 
 function ET:ScheduleSimCPublish()
-    if not self.db.settings.shareProfile or not self.db.settings.shareSimC then return end
     if self.simcPublishTimer then self.simcPublishTimer:Cancel() end
     self.simcPublishTimer = C_Timer.NewTimer(15, function()
         self.simcPublishTimer = nil
