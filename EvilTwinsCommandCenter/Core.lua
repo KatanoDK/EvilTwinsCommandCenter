@@ -1,6 +1,6 @@
 local addonName, ET = ...
 ET.name = addonName
-ET.version = "0.2.0"
+ET.version = "0.3.0"
 ET.slots = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 4, "Shirt" },
     { 5, "Chest" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
@@ -29,9 +29,11 @@ function ET:InitDB()
     if type(db.settings) ~= "table" then db.settings = {} end
     if type(db.characters) ~= "table" then db.characters = {} end
     if type(db.simcProfiles) ~= "table" then db.simcProfiles = {} end
+    if type(db.inventory) ~= "table" then db.inventory = {} end
     if type(db.wishlists) ~= "table" then db.wishlists = {} end
     if db.settings.shareProfile == nil then db.settings.shareProfile = false end
     if db.settings.shareSimC == nil then db.settings.shareSimC = false end
+    if db.settings.shareInventory == nil then db.settings.shareInventory = false end
     self.db = db
     self.key = self:PlayerKey()
     if type(db.wishlists[self.key]) ~= "table" then db.wishlists[self.key] = {} end
@@ -165,7 +167,8 @@ function ET:GetSimCProfile()
     if not api or type(api.GetSimcProfile) ~= "function" or not simc then
         return nil, "Install the current SimulationCraft addon to share SimC profiles."
     end
-    -- noBags=true keeps private bag and bank contents out of guild transfers.
+    -- SimulationCraft currently groups bags and bank under one switch.
+    -- Keep bank data out of shared exports; bag items are shared separately.
     local ok, profile, err = pcall(api.GetSimcProfile, simc, false, true, false, nil)
     if not ok then return nil, "SimulationCraft could not produce a profile." end
     if type(profile) ~= "string" or #profile == 0 then
@@ -181,6 +184,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         ET:InitDB()
         ET:CaptureSelf()
         ET.Comm:Initialize()
+        ET.Inventory:Initialize()
         ET:Print("Ready. Type /etcc to open the command center.")
         return
     end
@@ -204,9 +208,13 @@ SlashCmdList.EVILTWINSCC = function(input)
         local packed = ET.Protocol:EncodeSnapshot(snapshot)
         local encoded = ET.Protocol:ToBase64(packed)
         local decoded = ET.Protocol:DecodeSnapshot(ET.Protocol:FromBase64(encoded) or "")
+        local bagSample = { { slot = 2, id = 19019, count = 1, link = "item:19019" } }
+        local bagGUID, bagID, _, bagItems = ET.Protocol:DecodeBag(
+            ET.Protocol:EncodeBag(snapshot.guid, 0, time(), bagSample))
         if decoded and decoded.guid == snapshot.guid and decoded.talent == snapshot.talent
-            and #decoded.gear == #ET.slots then
-            ET:Print("Snapshot and transfer encoding passed. SimulationCraft API: "
+            and #decoded.gear == #ET.slots and bagGUID == snapshot.guid and bagID == 0
+            and bagItems and bagItems[1] and bagItems[1].link == bagSample[1].link then
+            ET:Print("Snapshot, bags, and transfer encoding passed. SimulationCraft API: "
                 .. ((_G.SimulationcraftAPI and "available") or "not installed"))
         else
             ET:Print("Self-test failed. Please report this with your WoW version.")

@@ -107,8 +107,11 @@ function UI:Create()
             ET.Comm:Publish(ET:CaptureSelf())
         else
             ET.db.settings.shareSimC = false
+            ET.db.settings.shareInventory = false
             ET.db.simcProfiles[ET.key] = nil
+            ET.db.inventory[ET.key] = nil
             UI.simcCheck:SetChecked(false)
+            UI.bagCheck:SetChecked(false)
             ET.Comm:Revoke()
         end
         UI:Refresh()
@@ -117,7 +120,7 @@ function UI:Create()
 
     local simc = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
     simc:SetPoint("LEFT", share, "RIGHT", 250, 0)
-    simc.Text:SetText("Share SimC with guild cache (equipped gear only)")
+    simc.Text:SetText("Share SimC export with guild cache")
     simc:SetChecked(ET.db.settings.shareSimC)
     simc:SetScript("OnClick", function(self)
         if self:GetChecked() and not ET.db.settings.shareProfile then
@@ -136,9 +139,31 @@ function UI:Create()
     end)
     self.simcCheck = simc
 
+    local bags = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    bags:SetPoint("TOPLEFT", 22, -82)
+    bags.Text:SetText("Share my bags with guildmates")
+    bags:SetChecked(ET.db.settings.shareInventory)
+    bags:SetScript("OnClick", function(self)
+        if self:GetChecked() and not ET.db.settings.shareProfile then
+            self:SetChecked(false)
+            ET:Print("Enable profile sharing first.")
+            return
+        end
+        ET.db.settings.shareInventory = self:GetChecked() and true or false
+        if ET.db.settings.shareInventory then
+            ET.Inventory:CaptureBags(false)
+            ET.Comm:PublishBags()
+        else
+            ET.db.inventory[ET.key] = nil
+            ET.Comm:RevokeBags()
+        end
+        UI:Refresh()
+    end)
+    self.bagCheck = bags
+
     local search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
     search:SetSize(236, 26)
-    search:SetPoint("TOPLEFT", 29, -94)
+    search:SetPoint("TOPLEFT", 29, -126)
     search:SetAutoFocus(false)
     search:SetScript("OnEscapePressed", search.ClearFocus)
     search:SetScript("OnTextChanged", function() UI:RefreshRoster() end)
@@ -147,7 +172,7 @@ function UI:Create()
     searchHint:SetPoint("BOTTOMLEFT", search, "TOPLEFT", 0, 2)
 
     local rosterScroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    rosterScroll:SetPoint("TOPLEFT", 23, -135)
+    rosterScroll:SetPoint("TOPLEFT", 23, -167)
     rosterScroll:SetPoint("BOTTOMLEFT", 23, 43)
     rosterScroll:SetWidth(256)
     local rosterChild = CreateFrame("Frame", nil, rosterScroll)
@@ -215,6 +240,15 @@ function UI:Create()
     end)
     refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 10, 0)
     self.refreshSimcButton = refreshSimc
+
+    local bagButton = button(detail, "View bags", 125, 25, function()
+        local snapshot = ET.db.characters[UI.selected]
+        if not snapshot then return end
+        local content = ET.Inventory:Format(UI.selected, snapshot.guid)
+        if content then UI:ShowCopy("Bags: " .. UI.selected, content) end
+    end)
+    bagButton:SetPoint("LEFT", refreshSimc, "RIGHT", 10, 0)
+    self.bagButton = bagButton
 
     local gearHeading = label(detail, "EQUIPPED GEAR", "GameFontNormal")
     gearHeading:SetPoint("TOPLEFT", 6, -119)
@@ -305,7 +339,7 @@ function UI:Create()
         self.wishRows[index] = row
     end
 
-    local footer = label(frame, "Shared SimC is cached by online guildmates, then available after you log off.", "GameFontHighlightSmall")
+    local footer = label(frame, "Shared SimC and bags are cached by online guildmates, then available after you log off.", "GameFontHighlightSmall")
     footer:SetPoint("BOTTOMLEFT", 23, 20)
     frame:SetScript("OnShow", function() UI:Refresh() end)
 end
@@ -363,6 +397,7 @@ function UI:RefreshDetail()
     self.timestamp:SetText("Snapshot: " .. date("%Y-%m-%d %H:%M", snapshot.updated)
         .. (cached and ("    SimC: " .. date("%Y-%m-%d %H:%M", cached.updated)) or "    SimC: none cached"))
     self.refreshSimcButton:SetText(isSelf and "Generate SimC" or "Request fresh")
+    self.bagButton:SetEnabled(ET.Inventory:Get(self.selected, snapshot.guid) ~= nil)
     for index, row in ipairs(self.gearRows) do
         local link = snapshot.gear[index]
         row.link = link
@@ -400,6 +435,7 @@ function UI:Refresh()
     if not self.frame then return end
     self.shareCheck:SetChecked(ET.db.settings.shareProfile)
     self.simcCheck:SetChecked(ET.db.settings.shareSimC)
+    self.bagCheck:SetChecked(ET.db.settings.shareInventory)
     self:RefreshRoster()
     self:RefreshDetail()
 end

@@ -80,6 +80,24 @@ function Comm:PublishSimC(target)
     return self:QueueTransfer("P", data, target and "WHISPER" or "GUILD", target)
 end
 
+function Comm:PublishBag(bagID, target)
+    if not IsInGuild() or not ET.db.settings.shareProfile or not ET.db.settings.shareInventory then return false end
+    local entry = ET.Inventory:Get(ET.key, UnitGUID("player"))
+    local bag = entry and entry.containers[bagID]
+    if not bag then return false end
+    local data = ET.Protocol:EncodeBag(entry.guid, bagID, bag.updated, bag.items)
+    return self:QueueTransfer("I", data, target and "WHISPER" or "GUILD", target)
+end
+
+function Comm:PublishBags(target)
+    local entry = ET.Inventory:Get(ET.key, UnitGUID("player"))
+    if not entry then return end
+    local bagIDs = {}
+    for bagID in pairs(entry.containers) do bagIDs[#bagIDs + 1] = bagID end
+    table.sort(bagIDs)
+    for _, bagID in ipairs(bagIDs) do self:PublishBag(bagID, target) end
+end
+
 function Comm:Hello()
     if IsInGuild() and not self.helloSent then
         self.helloSent = true
@@ -98,6 +116,10 @@ function Comm:InitialSync()
         self.simcScheduledOnLogin = true
         ET:ScheduleSimCPublish()
     end
+    if ET.db.settings.shareInventory and not self.bagsPublishedOnLogin then
+        self.bagsPublishedOnLogin = true
+        self:PublishBags()
+    end
 end
 
 function Comm:RequestSimC(sender, guid)
@@ -111,6 +133,11 @@ end
 function Comm:RevokeSimC()
     self:CancelTransfers("P")
     if IsInGuild() then self:Queue("Y|" .. (UnitGUID("player") or ""), "GUILD") end
+end
+
+function Comm:RevokeBags()
+    self:CancelTransfers("I")
+    if IsInGuild() then self:Queue("Z|" .. (UnitGUID("player") or ""), "GUILD") end
 end
 
 function Comm:Revoke()
@@ -130,15 +157,15 @@ function Comm:CancelTransfers(kind, channel)
 end
 
 function Comm:ReceiveTransfer(sender, channel, message)
-    local kind, id, indexText, totalText, chunk = message:match("^E|([SP])|([^|]+)|(%d+)|(%d+)|(.*)$")
+    local kind, id, indexText, totalText, chunk = message:match("^E|([SPI])|([^|]+)|(%d+)|(%d+)|(.*)$")
     if not kind then return end
     local index, total = tonumber(indexText), tonumber(totalText)
     if not index or not total or total < 1 or total > MAX_PARTS or index < 1 or index > total then return end
     if #chunk > CHUNK_SIZE then return end
-    if kind == "S" then
+    if kind == "S" or kind == "I" then
         if channel ~= "GUILD" and channel ~= "WHISPER" then return end
         if channel == "WHISPER" and not self:IsGuildSender(sender) then return end
-    else
+    elseif kind == "P" then
         if channel ~= "GUILD" and channel ~= "WHISPER" then return end
         if channel == "WHISPER" then
             if not self:IsGuildSender(sender) then return end
@@ -171,6 +198,10 @@ function Comm:ReceiveTransfer(sender, channel, message)
             ET.db.characters[sender] = snapshot
             ET.UI:Refresh()
         end
+    elseif kind == "I" then
+        local guid, bagID, updated, items = ET.Protocol:DecodeBag(data)
+        if not guid then return end
+        ET.Inventory:Store(sender, guid, bagID, updated, items)
     else
         local guid, updated, profile = ET.Protocol:DecodeSimC(data)
         if not guid then return end
@@ -195,6 +226,7 @@ function Comm:OnMessage(prefix, message, channel, sender)
             if ET.db.settings.shareProfile then
                 self:Publish(ET:CaptureSelf(), sender)
                 self:PublishSimC(sender)
+                self:PublishBags(sender)
             end
         end)
     elseif channel == "GUILD" and message:sub(1, 2) == "Q|" then
@@ -226,12 +258,19 @@ function Comm:OnMessage(prefix, message, channel, sender)
         if snapshot and snapshot.guid == message:sub(3) then
             ET.db.characters[sender] = nil
             ET.db.simcProfiles[sender] = nil
+            ET.db.inventory[sender] = nil
             ET.UI:Refresh()
         end
     elseif channel == "GUILD" and message:sub(1, 2) == "Y|" then
         local entry = ET.db.simcProfiles[sender]
         if entry and entry.guid == message:sub(3) then
             ET.db.simcProfiles[sender] = nil
+            ET.UI:Refresh()
+        end
+    elseif channel == "GUILD" and message:sub(1, 2) == "Z|" then
+        local entry = ET.db.inventory[sender]
+        if entry and entry.guid == message:sub(3) then
+            ET.db.inventory[sender] = nil
             ET.UI:Refresh()
         end
     end

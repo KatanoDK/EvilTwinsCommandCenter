@@ -129,3 +129,36 @@ function Protocol:DecodeSimC(data)
     if not fields[4]:find("^#") and not fields[4]:find("^%a+=[^\n]+") then return nil end
     return fields[2], updated, fields[4]
 end
+
+function Protocol:EncodeBag(guid, bagID, updated, items)
+    local fields = { "1", guid, bagID, updated, #items }
+    for _, item in ipairs(items) do
+        fields[#fields + 1] = item.slot
+        fields[#fields + 1] = item.id
+        fields[#fields + 1] = item.count
+        fields[#fields + 1] = item.link or ""
+    end
+    return self:Pack(fields)
+end
+
+function Protocol:DecodeBag(data)
+    local fields = self:Unpack(data, 5 + 150 * 4)
+    if not fields or #fields < 5 or fields[1] ~= "1" then return nil end
+    local guid, bagID, updated, count = fields[2], tonumber(fields[3]), tonumber(fields[4]), tonumber(fields[5])
+    if #guid == 0 or #guid > 64 or not bagID or bagID % 1 ~= 0 or bagID < 0 or bagID > 20
+        or not updated or updated <= 0 or not count or count % 1 ~= 0 or count < 0 or count > 150
+        or #fields ~= 5 + count * 4 then return nil end
+    local items, previousSlot = {}, 0
+    for index = 1, count do
+        local position = 6 + (index - 1) * 4
+        local slot, id, quantity = tonumber(fields[position]), tonumber(fields[position + 1]), tonumber(fields[position + 2])
+        local link = fields[position + 3]
+        if not slot or slot % 1 ~= 0 or slot <= previousSlot or slot > 150
+            or not id or id % 1 ~= 0 or id < 1 or id > 99999999
+            or not quantity or quantity % 1 ~= 0 or quantity < 1 or quantity > 1000000
+            or #link > 500 then return nil end
+        items[index] = { slot = slot, id = id, count = quantity, link = link }
+        previousSlot = slot
+    end
+    return guid, bagID, updated, items
+end
