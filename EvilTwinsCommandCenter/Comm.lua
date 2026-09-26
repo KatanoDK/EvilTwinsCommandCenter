@@ -161,12 +161,11 @@ function Comm:OnMessage(prefix, message, channel, sender)
     if message:sub(1, 2) == "E|" then
         self:ReceiveTransfer(sender, channel, message)
     elseif channel == "GUILD" and message == "H|1" and ET.db.settings.shareProfile then
-        if not self:IsGuildSender(sender) then return end
         C_Timer.After(math.random(2, 6), function()
             if ET.db.settings.shareProfile then self:Publish(ET:CaptureSelf(), sender) end
         end)
     elseif channel == "GUILD" and message:sub(1, 2) == "Q|" then
-        if not self:IsGuildSender(sender) or not ET.db.settings.shareProfile or not ET.db.settings.shareSimC then return end
+        if not ET.db.settings.shareProfile or not ET.db.settings.shareSimC then return end
         if message:sub(3) ~= UnitGUID("player") then return end
         local profile, err = ET:GetSimCProfile()
         if profile then
