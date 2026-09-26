@@ -78,6 +78,15 @@ function Comm:Hello()
     end
 end
 
+function Comm:InitialSync()
+    if not IsInGuild() then return end
+    self:Hello()
+    if ET.db.settings.shareProfile and not self.publishedOnLogin then
+        self.publishedOnLogin = true
+        self:Publish(ET:CaptureSelf())
+    end
+end
+
 function Comm:RequestSimC(sender, guid)
     if not sender or not guid or guid == "" then return false end
     if not self:IsGuildSender(sender) then return false end
@@ -189,7 +198,7 @@ function Comm:Initialize()
     self.events:RegisterEvent("GUILD_ROSTER_UPDATE")
     self.events:SetScript("OnEvent", function(_, event, ...)
         if event == "CHAT_MSG_ADDON" then self:OnMessage(...) end
-        if event == "GUILD_ROSTER_UPDATE" and GetNumGuildMembers() > 0 then self:Hello() end
+        if event == "GUILD_ROSTER_UPDATE" and GetNumGuildMembers() > 0 then self:InitialSync() end
     end)
     self.ticker = C_Timer.NewTicker(0.5, function()
         self:Pump()
@@ -197,5 +206,5 @@ function Comm:Initialize()
             if time() - transfer.started > 900 then self.incoming[key] = nil end
         end
     end)
-    C_Timer.After(5, function() self:Hello() end)
+    C_Timer.After(5, function() self:InitialSync() end)
 end

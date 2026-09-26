@@ -10,4 +10,3 @@ The addon starts with a small shared data model: character snapshot, wishlist, a
 6. **Companion dashboard:** an optional desktop helper reads the addon's SavedVariables after logout or `/reload` and uploads approved fields to a private guild service. This would make snapshots available outside WoW and while everyone is offline.
 
 Before adding a companion, validate the in-game data model and sharing experience with several guild members. The desktop helper would be a separate component; WoW addons cannot call web services directly.
-
