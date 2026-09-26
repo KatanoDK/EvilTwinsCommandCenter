@@ -335,6 +335,9 @@ function UI:Create()
     local overview = button(frame, "Guild raid prep", 150, 25, function() UI:ShowOverview() end)
     overview:SetPoint("TOPLEFT", 340, -18)
     self.overviewButton = overview
+    local crafting = button(frame, "Crafting directory", 160, 25, function() UI:ShowCrafting() end)
+    crafting:SetPoint("TOPLEFT", 505, -18)
+    self.craftingButton = crafting
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
 
@@ -538,7 +541,7 @@ function UI:Create()
         "Gear and carried bags sync automatically to online leaders. SimC syncs if installed.",
         "GameFontHighlightSmall")
     memberMessage:SetPoint("TOPLEFT", 24, -64)
-    local memberRank = label(frame, "Guild browsing and raid prep are for ranks 0–5.", "GameFontHighlightSmall")
+    local memberRank = label(frame, "Crafting directory is open to all guild ranks. Gear and raid prep are for ranks 0–5.", "GameFontHighlightSmall")
     memberRank:SetPoint("TOPLEFT", 24, -88)
     self.memberRank = memberRank
     self.memberMessage = memberMessage
@@ -639,6 +642,8 @@ function UI:Refresh()
     local isLeader = ET:CanUseLeaderTools()
     self.overviewButton:SetShown(isLeader)
     self.prepSettingsButton:SetShown(isLeader)
+    self.craftingButton:ClearAllPoints()
+    self.craftingButton:SetPoint("TOPLEFT", isLeader and 505 or 340, -18)
     self.frame:SetWidth(isLeader and 990 or 650)
     self.frame:SetHeight(isLeader and 680 or 135)
     self.search:SetShown(isLeader)
@@ -657,6 +662,7 @@ function UI:Refresh()
     self:RefreshRoster()
     self:RefreshDetail()
     self:RefreshOverview()
+    self:RefreshCrafting()
 end
 
 function UI:Toggle()

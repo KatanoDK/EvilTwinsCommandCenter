@@ -1,6 +1,6 @@
 local addonName, ET = ...
 ET.name = addonName
-ET.version = "0.5.0"
+ET.version = "0.6.0"
 ET.slots = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 4, "Shirt" },
     { 5, "Chest" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
@@ -30,6 +30,7 @@ function ET:InitDB()
     if type(db.characters) ~= "table" then db.characters = {} end
     if type(db.simcProfiles) ~= "table" then db.simcProfiles = {} end
     if type(db.inventory) ~= "table" then db.inventory = {} end
+    if type(db.crafting) ~= "table" then db.crafting = {} end
     if type(db.wishlists) ~= "table" then db.wishlists = {} end
     db.settings.shareProfile = nil
     db.settings.shareSimC = nil
@@ -189,6 +190,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         ET:CaptureSelf()
         ET.Comm:Initialize()
         ET.Inventory:Initialize()
+        ET.Crafting:Initialize()
         ET:Print("Ready. Type /etcc to open the command center.")
         return
     end
@@ -219,11 +221,16 @@ SlashCmdList.EVILTWINSCC = function(input)
         local bagSample = { { slot = 2, id = 19019, count = 1, link = "item:19019" } }
         local bagGUID, bagID, _, bagItems = ET.Protocol:DecodeBag(
             ET.Protocol:EncodeBag(snapshot.guid, 0, time(), bagSample))
+        local craftSample = { { id = 12345, learned = true, name = "Sample recipe" } }
+        local craftGUID, craftProfession, _, _, craftPage, _, craftRecipes = ET.Protocol:DecodeCrafting(
+            ET.Protocol:EncodeCrafting(snapshot.guid, 171, "Alchemy", time(), 1, 1, craftSample))
         if decoded and decoded.guid == snapshot.guid and decoded.talent == snapshot.talent
             and #decoded.gear == #ET.slots and decoded.durability[1] == snapshot.durability[1]
             and bagGUID == snapshot.guid and bagID == 0
-            and bagItems and bagItems[1] and bagItems[1].link == bagSample[1].link then
-            ET:Print("Snapshot, bags, and transfer encoding passed. SimulationCraft API: "
+            and bagItems and bagItems[1] and bagItems[1].link == bagSample[1].link
+            and craftGUID == snapshot.guid and craftProfession == 171 and craftPage == 1
+            and craftRecipes and craftRecipes[1] and craftRecipes[1].name == craftSample[1].name then
+            ET:Print("Snapshot, bags, crafting, and transfer encoding passed. SimulationCraft API: "
                 .. ((_G.SimulationcraftAPI and "available") or "not installed"))
         else
             ET:Print("Self-test failed. Please report this with your WoW version.")

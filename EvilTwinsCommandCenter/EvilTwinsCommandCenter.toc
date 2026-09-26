@@ -1,8 +1,8 @@
 ## Interface: 120100
 ## Title: Evil Twins Command Center
-## Notes: Opt-in guild gear, raid prep, talent, wishlist, bags, and SimC sharing
+## Notes: Guild crafting directory, gear, raid prep, talent, wishlist, bags, and SimC sharing
 ## Author: Evil Twins
-## Version: 0.5.0
+## Version: 0.6.0
 ## SavedVariables: EvilTwinsCCDB
 ## OptionalDeps: Simulationcraft
 
@@ -11,5 +11,7 @@ Permissions.lua
 Protocol.lua
 Comm.lua
 Inventory.lua
+Crafting.lua
 RaidPrep.lua
 UI.lua
+CraftingUI.lua

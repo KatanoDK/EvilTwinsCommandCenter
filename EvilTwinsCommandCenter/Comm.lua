@@ -1,5 +1,5 @@
 local _, ET = ...
-local Comm = { prefix = "EvilTwinsCC", queue = {}, incoming = {}, pendingSimC = {},
+local Comm = { prefix = "EvilTwinsCC", queue = {}, craftingJobs = {}, incoming = {}, pendingSimC = {},
     gearReplies = {}, pendingGearReplies = {} }
 ET.Comm = Comm
 
@@ -66,10 +66,11 @@ function Comm:QueueToLeaders(kind, data, target)
 end
 
 function Comm:Pump()
+    self:FillCraftingQueue()
     if #self.queue == 0 then return end
     if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
     local entry = self.queue[1]
-    if entry.channel == "WHISPER" and entry.message:match("^E|[SPI]|") then
+    if entry.channel == "WHISPER" and entry.message:match("^E|[SPIC]|") then
         local rankIndex = ET:GetGuildRankIndex(entry.target)
         if rankIndex == nil then
             if not entry.rosterWaitUntil then
@@ -78,7 +79,7 @@ function Comm:Pump()
             end
             if time() < entry.rosterWaitUntil then return end
         end
-        if rankIndex == nil or rankIndex > ET.leaderRankCutoff then
+        if rankIndex == nil or (not entry.message:match("^E|C|") and rankIndex > ET.leaderRankCutoff) then
             table.remove(self.queue, 1)
             return
         end
@@ -127,6 +128,48 @@ function Comm:PublishBags(target)
     for _, bagID in ipairs(bagIDs) do self:PublishBag(bagID, target) end
 end
 
+function Comm:PublishCrafting(professionID, target)
+    if not IsInGuild() or (target and not self:IsGuildSender(target)) then return false end
+    local entry = ET.Crafting:Get(ET.key, UnitGUID("player"))
+    local profession = entry and entry.professions[professionID]
+    if not profession or #profession.recipes == 0 then return false end
+    local total = math.ceil(#profession.recipes / ET.Crafting.pageSize)
+    if total > 40 then return false end
+    if #self.craftingJobs >= 50 then return false end
+    self.craftingJobs[#self.craftingJobs + 1] = {
+        guid = entry.guid, professionID = professionID, profession = profession,
+        target = target, page = 1, total = total,
+    }
+    return true
+end
+
+function Comm:FillCraftingQueue()
+    if #self.queue > 600 or #self.craftingJobs == 0 then return end
+    local job = self.craftingJobs[1]
+    local recipes = {}
+    for index = (job.page - 1) * ET.Crafting.pageSize + 1,
+        math.min(job.page * ET.Crafting.pageSize, #job.profession.recipes) do
+        recipes[#recipes + 1] = job.profession.recipes[index]
+    end
+    local data = ET.Protocol:EncodeCrafting(job.guid, job.professionID, job.profession.name,
+        job.profession.updated, job.page, job.total, recipes)
+    if self:QueueTransfer("C", data, job.target and "WHISPER" or "GUILD", job.target) then
+        job.page = job.page + 1
+        if job.page > job.total then table.remove(self.craftingJobs, 1) end
+    end
+end
+
+function Comm:PublishAllCrafting(target)
+    local entry = ET.Crafting:Get(ET.key, UnitGUID("player"))
+    if not entry then return end
+    local ids = {}
+    for id in pairs(entry.professions) do ids[#ids + 1] = id end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+        if not self:PublishCrafting(id, target) then break end
+    end
+end
+
 function Comm:Hello()
     if IsInGuild() and ET:CanUseLeaderTools() and not self.helloSent then
         self.helloSent = true
@@ -137,6 +180,13 @@ end
 function Comm:InitialSync()
     if not IsInGuild() then return end
     self:Hello()
+    if not self.craftingHelloSent then
+        self.craftingHelloSent = self:Queue("H|C", "GUILD")
+    end
+    if not self.craftingPublishedOnLogin then
+        self.craftingPublishedOnLogin = true
+        self:PublishAllCrafting()
+    end
     if not self.publishedOnLogin then
         self.publishedOnLogin = self:Publish(ET:CaptureSelf())
     end
@@ -179,13 +229,14 @@ function Comm:ReplyWithCurrentGear(sender)
 end
 
 function Comm:ReceiveTransfer(sender, channel, message)
-    if not ET:CanUseLeaderTools() then return end
-    local kind, id, indexText, totalText, chunk = message:match("^E|([SPI])|([^|]+)|(%d+)|(%d+)|(.*)$")
+    local kind, id, indexText, totalText, chunk = message:match("^E|([SPIC])|([^|]+)|(%d+)|(%d+)|(.*)$")
     if not kind then return end
+    if kind ~= "C" and not ET:CanUseLeaderTools() then return end
+    if not self:IsGuildSender(sender) then return end
     local index, total = tonumber(indexText), tonumber(totalText)
     if not index or not total or total < 1 or total > MAX_PARTS or index < 1 or index > total then return end
     if #chunk > CHUNK_SIZE then return end
-    if kind == "S" or kind == "I" then
+    if kind == "S" or kind == "I" or kind == "C" then
         if channel ~= "GUILD" and channel ~= "WHISPER" then return end
         if channel == "WHISPER" and not self:IsGuildSender(sender) then return end
     elseif kind == "P" then
@@ -211,7 +262,9 @@ function Comm:ReceiveTransfer(sender, channel, message)
     if #encoded > 120000 then return end
     local data = ET.Protocol:FromBase64(encoded)
     if not data then return end
-    if kind == "S" then
+    if kind == "C" then
+        ET.Crafting:ReceivePage(sender, data)
+    elseif kind == "S" then
         local snapshot = ET.Protocol:DecodeSnapshot(data)
         if not snapshot then return end
         local shortSender = Ambiguate(sender, "short")
@@ -244,6 +297,15 @@ function Comm:OnMessage(prefix, message, channel, sender)
     if prefix ~= self.prefix or sender == ET.key or sender == UnitName("player") or type(message) ~= "string" then return end
     if message:sub(1, 2) == "E|" then
         self:ReceiveTransfer(sender, channel, message)
+    elseif channel == "GUILD" and message == "H|C" and self:IsGuildSender(sender) then
+        local requester = normalize(sender)
+        if self.craftingReplies and self.craftingReplies[requester]
+            and time() - self.craftingReplies[requester] < 60 then return end
+        self.craftingReplies = self.craftingReplies or {}
+        self.craftingReplies[requester] = time()
+        C_Timer.After(math.random(2, 6), function()
+            if self:IsGuildSender(sender) then self:PublishAllCrafting(sender) end
+        end)
     elseif channel == "GUILD" and message == "H|1" and ET:CanSenderUseLeaderTools(sender) then
         C_Timer.After(math.random(2, 6), function()
             if ET:CanSenderUseLeaderTools(sender) then
@@ -330,6 +392,9 @@ function Comm:Initialize()
         self:Pump()
         for key, transfer in pairs(self.incoming) do
             if time() - transfer.started > 900 then self.incoming[key] = nil end
+        end
+        for key, transfer in pairs(ET.Crafting.incoming) do
+            if time() - transfer.started > 3600 then ET.Crafting.incoming[key] = nil end
         end
     end)
     C_Timer.After(5, function() self:InitialSync() end)

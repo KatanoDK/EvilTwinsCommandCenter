@@ -175,3 +175,38 @@ function Protocol:DecodeBag(data)
     end
     return guid, bagID, updated, items
 end
+
+function Protocol:EncodeCrafting(guid, professionID, name, updated, page, total, recipes)
+    local fields = { "1", guid, professionID, name, updated, page, total, #recipes }
+    for _, recipe in ipairs(recipes) do
+        fields[#fields + 1] = recipe.id
+        fields[#fields + 1] = recipe.learned and "1" or "0"
+        fields[#fields + 1] = recipe.name
+    end
+    return self:Pack(fields)
+end
+
+function Protocol:DecodeCrafting(data)
+    local fields = self:Unpack(data, 8 + 100 * 3)
+    if not fields or #fields < 8 or fields[1] ~= "1" then return nil end
+    local guid, professionID, name = fields[2], tonumber(fields[3]), fields[4]
+    local updated, page, total, count = tonumber(fields[5]), tonumber(fields[6]),
+        tonumber(fields[7]), tonumber(fields[8])
+    if #guid == 0 or #guid > 64 or not professionID or professionID % 1 ~= 0
+        or professionID < 1 or professionID > 999999
+        or #name == 0 or #name > 100 or not updated or updated < 1
+        or updated > time() + 300 or not page or page % 1 ~= 0
+        or not total or total % 1 ~= 0 or page < 1 or page > total or total > 40
+        or not count or count % 1 ~= 0 or count < 1 or count > 100
+        or #fields ~= 8 + count * 3 then return nil end
+    local recipes = {}
+    for index = 1, count do
+        local position = 9 + (index - 1) * 3
+        local id, learned, recipeName = tonumber(fields[position]), fields[position + 1], fields[position + 2]
+        if not id or id % 1 ~= 0 or id < 1 or id > 99999999
+            or (learned ~= "0" and learned ~= "1")
+            or #recipeName == 0 or #recipeName > 100 then return nil end
+        recipes[index] = { id = id, name = recipeName, learned = learned == "1" }
+    end
+    return guid, professionID, name, updated, page, total, recipes
+end

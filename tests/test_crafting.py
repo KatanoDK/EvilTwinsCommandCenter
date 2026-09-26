@@ -1,0 +1,26 @@
+"""Run with Python and lupa installed: python tests/test_crafting.py."""
+from pathlib import Path
+from lupa.lua51 import LuaRuntime
+
+root = Path(__file__).resolve().parents[1]
+lua = LuaRuntime(unpack_returned_tuples=True)
+for path in (root / "EvilTwinsCommandCenter").glob("*.lua"):
+    lua.execute("assert(loadstring(...))", path.read_text(encoding="utf-8"))
+
+lua.execute("""
+now = 100000
+function time() return now end
+function IsInGuild() return true end
+function UnitGUID() return "Player-self" end
+function UnitName() return "Self" end
+Enum = {}
+ET = { key = "Self-Realm", db = { crafting = {}, characters = {} }, leaderRankCutoff = 5 }
+function ET:GetGuildRankIndex(name) return name ~= "Stranger-Realm" and 8 or nil end
+function ET:CanUseLeaderTools() return false end
+function ET:CanSenderUseLeaderTools() return false end
+""")
+for name in ("Protocol", "Crafting", "Comm"):
+    source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
+    lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
+lua.execute((root / "tests" / "crafting_spec.lua").read_text(encoding="utf-8"))
+print("All Lua files compile; crafting protocol, scan, assembly, queue, and rank checks passed.")
