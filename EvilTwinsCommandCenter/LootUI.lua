@@ -101,7 +101,9 @@ function UI:CreateLootPicker()
     frame:RegisterEvent("EJ_LOOT_DATA_RECIEVED")
     frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     frame:SetScript("OnEvent", function()
-        if not frame:IsShown() or UI.lootTimer then return end
+        -- Journal queries can emit synchronous loot events while changing or
+        -- restoring their context. Those events must not start a query loop.
+        if not frame:IsShown() or UI.lootTimer or ET.Loot.querying then return end
         UI.lootTimer = C_Timer.NewTimer(0.2, function()
             UI.lootTimer = nil
             if frame:IsShown() then UI:RefreshLoot() end

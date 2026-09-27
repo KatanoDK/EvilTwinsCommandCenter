@@ -132,6 +132,19 @@ function RunDirectoryUIChecks()
     UI.selected = ET.key
     UI:ShowLootPicker()
     assert(UI.lootFrame.shown and #UI.lootSources == 1 and #UI.lootDisplay == 2)
+    local oldSetDifficulty = EJ_SetDifficulty
+    EJ_SetDifficulty = function(value)
+        oldSetDifficulty(value)
+        UI.lootFrame.scripts.OnEvent()
+    end
+    UI:RefreshLoot()
+    assert(not UI.lootTimer, "Synchronous events from a query must not start a refresh loop")
+    EJ_SetDifficulty = oldSetDifficulty
+    UI.lootFrame.scripts.OnEvent()
+    assert(UI.lootTimer, "Asynchronous item data must schedule a refresh")
+    local callback = UI.lootTimer.callback
+    callback()
+    assert(not UI.lootTimer)
     local addedRow
     for _, row in ipairs(UI.lootRows) do if row.item.id == ET.db.wishlists[ET.key][1].id then addedRow = row end end
     assert(addedRow and not addedRow.add.enabled and addedRow.add.text == "Added")

@@ -24,6 +24,7 @@ function Loot:Query(callback)
     local slot = C_EncounterJournal.GetSlotFilter and C_EncounterJournal.GetSlotFilter()
     local instance = EncounterJournal and EncounterJournal.instanceID
     local encounter = EncounterJournal and EncounterJournal.encounterID
+    self.querying = true
     local ok, result = pcall(callback)
     EJ_SelectTier(tier)
     if instance then
@@ -33,6 +34,7 @@ function Loot:Query(callback)
     EJ_SetDifficulty(difficulty)
     EJ_SetLootFilter(class, spec)
     if slot and C_EncounterJournal.SetSlotFilter then C_EncounterJournal.SetSlotFilter(slot) end
+    self.querying = false
     if not ok then return nil, "Loot data is still loading. Try again shortly." end
     return result
 end
