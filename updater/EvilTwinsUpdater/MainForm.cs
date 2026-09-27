@@ -7,15 +7,14 @@ namespace EvilTwinsUpdater;
 internal sealed class Settings
 {
     public string RetailFolder { get; set; } = "";
-    public string Repository { get; set; } = "KatanoDK/EvilTwinsCommandCenter";
     public bool Automatic { get; set; } = true;
 }
 
 internal sealed class MainForm : Form
 {
+    private const string Repository = "KatanoDK/EvilTwinsCommandCenter";
     private readonly string stateDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EvilTwinsUpdater");
     private readonly TextBox folder = new() { ReadOnly = true, Dock = DockStyle.Fill };
-    private readonly TextBox repository = new() { Dock = DockStyle.Fill };
     private readonly CheckBox automatic = new() { Text = "Automatically check and install updates every 15 minutes", AutoSize = true };
     private readonly Label installed = new() { AutoSize = true };
     private readonly Label status = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
@@ -33,28 +32,25 @@ internal sealed class MainForm : Form
     public MainForm(bool preview = false)
     {
         Text = "Evil Twins — Addon Updater";
-        ClientSize = new Size(690, 390);
-        MinimumSize = new Size(710, 430);
+        ClientSize = new Size(690, 330);
+        MinimumSize = new Size(710, 370);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 10);
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 2, RowCount = 9 };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 2, RowCount = 7 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         void Full(Control control, int row) { layout.Controls.Add(control, 0, row); layout.SetColumnSpan(control, 2); }
         Full(new Label { Text = "EVIL TWINS COMMAND CENTER", Font = new Font(Font, FontStyle.Bold), AutoSize = true }, 0);
-        Full(new Label { Text = "Choose your Retail folder once. Updates install when WoW is closed.", AutoSize = true, Margin = new Padding(0, 8, 0, 15) }, 1);
+        Full(new Label { Text = "Updates can install while WoW is open. Type /reload in-game afterward.", AutoSize = true, Margin = new Padding(0, 8, 0, 15) }, 1);
         layout.Controls.Add(folder, 0, 2); layout.Controls.Add(browse, 1, 2);
-        Full(new Label { Text = "Public GitHub downloads repository (owner/repository)", AutoSize = true, Margin = new Padding(0, 12, 0, 3) }, 3);
-        Full(repository, 4);
-        automatic.Margin = new Padding(0, 15, 0, 10); Full(automatic, 5);
+        automatic.Margin = new Padding(0, 15, 0, 10); Full(automatic, 3);
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
-        actions.Controls.AddRange([check, local, rollback]); Full(actions, 6);
-        installed.Margin = new Padding(0, 12, 0, 5); Full(installed, 7);
-        Full(status, 8);
+        actions.Controls.AddRange([check, local, rollback]); Full(actions, 4);
+        installed.Margin = new Padding(0, 12, 0, 5); Full(installed, 5);
+        Full(status, 6);
         Controls.Add(layout);
         if (!preview) LoadSettings();
         folder.Text = settings.RetailFolder;
-        repository.Text = settings.Repository;
         automatic.Checked = settings.Automatic;
         tray.Visible = !preview;
         browse.Click += (_, _) => ChooseFolder();
@@ -62,7 +58,6 @@ internal sealed class MainForm : Form
         local.Click += (_, _) => InstallLocal();
         rollback.Click += (_, _) => Restore();
         automatic.CheckedChanged += (_, _) => { pausedAfterRollback = false; SaveSettings(); };
-        repository.Leave += (_, _) => SaveSettings();
         timer.Tick += async (_, _) => { if (automatic.Checked && !pausedAfterRollback) await UpdateAsync(); };
         var menu = new ContextMenuStrip();
         menu.Items.Add("Open updater", null, (_, _) => ShowWindow());
@@ -98,6 +93,14 @@ internal sealed class MainForm : Form
         return false;
     }
 
+    private void ReportInstallation(string message)
+    {
+        var running = GameRunning();
+        status.Text = message + (running ? " Type /reload in WoW to load it when you're ready." : "");
+        if (running)
+            tray.ShowBalloonTip(10000, "Evil Twins addon files updated", "Type /reload in WoW when you're ready to load the installed build.", ToolTipIcon.Info);
+    }
+
     private void LoadSettings()
     {
         try
@@ -112,7 +115,7 @@ internal sealed class MainForm : Form
     {
         try
         {
-            settings = new Settings { RetailFolder = folder.Text, Repository = repository.Text.Trim(), Automatic = automatic.Checked };
+            settings = new Settings { RetailFolder = folder.Text, Automatic = automatic.Checked };
             Directory.CreateDirectory(stateDirectory);
             var path = Path.Combine(stateDirectory, "settings.json");
             File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(settings));
@@ -150,7 +153,7 @@ internal sealed class MainForm : Form
     private void SetBusy(bool value)
     {
         busy = value;
-        browse.Enabled = check.Enabled = local.Enabled = repository.Enabled = automatic.Enabled = !value;
+        browse.Enabled = check.Enabled = local.Enabled = automatic.Enabled = !value;
         rollback.Enabled = false;
     }
 
@@ -161,17 +164,16 @@ internal sealed class MainForm : Form
         try
         {
             SetBusy(true); SaveSettings(); status.Text = "Checking for a new addon build…";
-            var build = await feed.LatestAsync(repository.Text);
+            var build = await feed.LatestAsync(Repository);
             var current = AddonInstaller.InstalledBuild(folder.Text);
             if (current?.Commit == build.Commit) { status.Text = "Your addon is up to date."; return; }
-            if (GameRunning()) { status.Text = "A new build is available. It will install after WoW closes, at the next check."; return; }
             Directory.CreateDirectory(stateDirectory);
             download = Path.Combine(stateDirectory, "download-" + Guid.NewGuid().ToString("N") + ".zip");
             status.Text = "Downloading and verifying the addon…";
             await feed.DownloadAsync(build, download);
-            AddonInstaller.Install(folder.Text, download, GameRunning, build.Commit);
+            AddonInstaller.Install(folder.Text, download, build.Commit);
             pausedAfterRollback = false;
-            status.Text = "Updated successfully. The previous addon build is available to restore.";
+            ReportInstallation("Updated successfully. The previous addon build is available to restore.");
         }
         catch (Exception error) { status.Text = error.Message; }
         finally
@@ -186,7 +188,7 @@ internal sealed class MainForm : Form
         if (folder.Text.Length == 0) { status.Text = "Choose your Retail folder first."; return; }
         using var picker = new OpenFileDialog { Filter = "Addon ZIP (*.zip)|*.zip", Title = "Choose an Evil Twins addon build" };
         if (picker.ShowDialog(this) != DialogResult.OK) return;
-        try { SetBusy(true); AddonInstaller.Install(folder.Text, picker.FileName, GameRunning); status.Text = "Test ZIP installed successfully."; }
+        try { SetBusy(true); AddonInstaller.Install(folder.Text, picker.FileName); ReportInstallation("Test ZIP installed successfully."); }
         catch (Exception error) { status.Text = error.Message; }
         finally { SetBusy(false); RefreshBuild(); }
     }
@@ -195,11 +197,11 @@ internal sealed class MainForm : Form
     {
         try
         {
-            AddonInstaller.Rollback(folder.Text, GameRunning);
+            AddonInstaller.Rollback(folder.Text);
             pausedAfterRollback = true;
             automatic.Checked = false;
             SaveSettings(); RefreshBuild();
-            status.Text = "Previous build restored. Automatic updates are off so it stays installed.";
+            ReportInstallation("Previous build restored. Automatic updates are off so it stays installed.");
         }
         catch (Exception error) { status.Text = error.Message; }
     }

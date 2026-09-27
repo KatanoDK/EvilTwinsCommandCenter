@@ -47,7 +47,7 @@ jobs:
           @'
           Development build — addon version 0.1.0. In-game testing is still required.
 
-          Download EvilTwinsUpdater-win-x64.zip, extract it, and run EvilTwinsUpdater.exe. Choose your WoW _retail_ folder once. Updates install while WoW is closed; keep the updater open or minimized for automatic checks. No GitHub login is needed.
+          Download EvilTwinsUpdater-win-x64.zip, extract it, and run EvilTwinsUpdater.exe. Exit an older updater from its tray menu before replacing it. Choose your WoW _retail_ folder once. Updates can install while WoW is open; type /reload in-game afterward. Keep the updater open or minimized for automatic checks. No GitHub login or repository setup is needed.
 
           For manual installation, extract EvilTwinsCommandCenter.zip into Retail's Interface/AddOns folder.
           '@ | Set-Content -LiteralPath dist/release-notes.md -Encoding utf8

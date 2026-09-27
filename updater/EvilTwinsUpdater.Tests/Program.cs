@@ -45,13 +45,25 @@ try
 {
     var first = Zip("first.zip", firstCommit);
     var second = Zip("second.zip", secondCommit);
-    Reject(() => AddonInstaller.Install(retail, first, () => true), "WoW running");
-    Assert(AddonInstaller.InstalledBuild(retail) == null, "Running game must not install.");
-    AddonInstaller.Install(retail, first, () => false, firstCommit);
-    AddonInstaller.Install(retail, second, () => false, secondCommit);
+    AddonInstaller.Install(retail, first, firstCommit);
+    var corePath = Path.Combine(retail, "Interface", "AddOns", AddonInstaller.AddonName, "Core.lua");
+    // If another program locks a file, leave the current installation intact for a retry.
+    using (var lockedFile = new FileStream(corePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+    {
+        Reject(() => AddonInstaller.Install(retail, second, secondCommit), "Locked addon file");
+        Assert(AddonInstaller.InstalledBuild(retail)?.Commit == firstCommit, "Locked-file failure changed installed build.");
+    }
+    AddonInstaller.Install(retail, second, secondCommit);
+    Assert(File.ReadAllText(corePath).Contains(secondCommit), "Retry must install the new code.");
     Assert(AddonInstaller.InstalledBuild(retail)?.Commit == secondCommit, "Second build must be installed.");
     Assert(AddonInstaller.HasBackup(retail), "Previous build must be backed up.");
-    AddonInstaller.Rollback(retail, () => false);
+    using (var lockedFile = new FileStream(corePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+    {
+        Reject(() => AddonInstaller.Rollback(retail), "Locked addon file during restore");
+        Assert(AddonInstaller.InstalledBuild(retail)?.Commit == secondCommit, "Locked-file restore failure changed installed build.");
+        Assert(AddonInstaller.HasBackup(retail), "Locked-file restore failure removed the backup.");
+    }
+    AddonInstaller.Rollback(retail);
     Assert(AddonInstaller.InstalledBuild(retail)?.Commit == firstCommit, "Rollback must restore first build.");
     Assert(File.ReadAllText(Path.Combine(wtf, "SavedVariables.lua")) == "keep me", "SavedVariables changed.");
     Assert(File.ReadAllText(Path.Combine(other, "Other.lua")) == "keep me too", "Another addon changed.");
@@ -60,12 +72,10 @@ try
         ("outside.zip", "OtherAddon/attack.lua"),
         ("executable.zip", "EvilTwinsCommandCenter/attack.exe"),
         ("duplicate.zip", "EvilTwinsCommandCenter/core.lua") })
-        Reject(() => AddonInstaller.Install(retail, Zip(filename, secondCommit, entry), () => false), filename);
-    Reject(() => AddonInstaller.Install(retail, Zip("dirty.zip", secondCommit, dirty: true), () => false), "Dirty build");
-    Reject(() => AddonInstaller.Install(retail, Zip("missing.zip", secondCommit, missingFile: true), () => false), "Missing TOC file");
-    Reject(() => AddonInstaller.Install(retail, second, () => false, firstCommit), "Wrong published commit");
-    var probes = 0;
-    Reject(() => AddonInstaller.Install(retail, second, () => ++probes > 1), "Game starts while staging");
+        Reject(() => AddonInstaller.Install(retail, Zip(filename, secondCommit, entry)), filename);
+    Reject(() => AddonInstaller.Install(retail, Zip("dirty.zip", secondCommit, dirty: true)), "Dirty build");
+    Reject(() => AddonInstaller.Install(retail, Zip("missing.zip", secondCommit, missingFile: true)), "Missing TOC file");
+    Reject(() => AddonInstaller.Install(retail, second, firstCommit), "Wrong published commit");
     Assert(AddonInstaller.InstalledBuild(retail)?.Commit == firstCommit, "Rejected update changed installed build.");
     var bytes = File.ReadAllBytes(second);
     var digest = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -84,7 +94,7 @@ try
     try { await feed.DownloadAsync(build with { Sha256 = new string('0', 64) }, Path.Combine(testRoot, "wrong-hash.zip")); }
     catch (InvalidDataException) { checksumRejected = true; }
     Assert(checksumRejected, "Download checksum mismatch was accepted.");
-    Console.WriteLine("PASS: installation, backup, rollback, game gates, path validation, saved data preservation, public feed, and checksums.");
+    Console.WriteLine("PASS: installation, rollback, locked-file failures and retry, backup, path validation, saved data preservation, public feed, and checksums.");
 }
 finally
 {

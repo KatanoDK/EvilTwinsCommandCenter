@@ -114,10 +114,9 @@ public static class AddonInstaller
         return build;
     }
 
-    public static BuildInfo Install(string retail, string zipFile, Func<bool> gameRunning, string? expectedCommit = null)
+    public static BuildInfo Install(string retail, string zipFile, string? expectedCommit = null)
     {
         var addons = AddonsPath(retail);
-        if (gameRunning()) throw new InvalidOperationException("Close World of Warcraft before installing an update.");
         Directory.CreateDirectory(addons);
         var target = Path.Combine(addons, AddonName);
         var backup = Path.Combine(addons, BackupName);
@@ -128,7 +127,6 @@ public static class AddonInstaller
             var build = ExtractValidated(zipFile, stage, expectedCommit);
             CheckTree(target);
             CheckTree(backup);
-            if (gameRunning()) throw new InvalidOperationException("WoW started during the download. Close it to install.");
             if (Directory.Exists(target))
             {
                 if (Directory.Exists(backup)) Directory.Delete(backup, true);
@@ -145,10 +143,9 @@ public static class AddonInstaller
         finally { if (Directory.Exists(stage)) Directory.Delete(stage, true); }
     }
 
-    public static void Rollback(string retail, Func<bool> gameRunning)
+    public static void Rollback(string retail)
     {
         var addons = AddonsPath(retail);
-        if (gameRunning()) throw new InvalidOperationException("Close WoW before rolling back.");
         var target = Path.Combine(addons, AddonName);
         var backup = Path.Combine(addons, BackupName);
         if (!Directory.Exists(backup)) throw new InvalidOperationException("There is no previous installation to restore.");

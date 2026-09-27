@@ -31,7 +31,7 @@ public sealed class GitHubFeed : IDisposable
         repository = ValidateRepository(repository);
         using var response = await client.GetAsync($"https://api.github.com/repos/{repository}/releases?per_page=30", cancellation);
         if (response.StatusCode == HttpStatusCode.NotFound)
-            throw new InvalidOperationException("This repository is private or unavailable. Choose a public downloads repository or use Install ZIP.");
+            throw new InvalidOperationException("The addon downloads are unavailable. Try again later or use Install ZIP.");
         if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
             throw new InvalidOperationException("GitHub has limited update checks. Try again later.");
         response.EnsureSuccessStatusCode();
