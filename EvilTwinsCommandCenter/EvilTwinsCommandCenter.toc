@@ -13,6 +13,7 @@ Protocol.lua
 Comm.lua
 Inventory.lua
 Crafting.lua
+Consumables.lua
 RaidPrep.lua
 Roster.lua
 UI.lua

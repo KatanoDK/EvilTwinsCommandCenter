@@ -62,7 +62,7 @@ local function widget(parent) return setmetatable({ parent = parent, shown = tru
 for _, name in ipairs({ "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor", "SetAlpha",
     "SetClampedToScreen", "SetToplevel", "Raise", "SetJustifyH", "SetWordWrap", "SetTextColor", "SetFrameStrata",
     "EnableMouse", "SetMovable", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetAutoFocus",
-    "ClearFocus", "SetColorTexture", "SetAllPoints", "SetHighlightTexture" }) do methods[name] = function() end end
+    "ClearFocus", "SetColorTexture", "SetAllPoints", "SetHighlightTexture", "SetMaxLines", "RegisterEvent" }) do methods[name] = function() end end
 function methods:SetSize(w, h) self.width, self.height = w, h end
 function methods:SetWidth(w) self.width = w end
 function methods:SetHeight(h) self.height = h end
@@ -101,6 +101,8 @@ function RunUIChecks()
     UI:Create()
     UI.rosterScroll.height = 406
     UI:Refresh()
+    assert(UI.activeTab == "prep" and UI.tabPanels.prep.shown and not UI.tabPanels.build.shown)
+    assert(not UI.prepSettingsButton and not UI.gearPanel, "Settings and the full equipment panel must be removed")
     assert(#UI.rosterEntries == 1005 and #UI.rosterRows <= 10, "A large roster must use a small row pool")
     local firstKey = UI.rosterRows[1].key
     UI.rosterScroll:SetVerticalScroll(46 * 500)
@@ -121,13 +123,22 @@ function RunUIChecks()
     UI.visibilityFilter.choices[2].pick("ONLINE")
     assert(#UI.rosterEntries == 3 and ET.db.settings.rosterVisibility == "ONLINE")
     UI.selected = ET.key
+    UI:SetTab("wishlist")
     UI:RefreshDetail()
     assert(UI.itemInput.shown and UI.noteHint.shown and UI.emptyWish.point[3] == -98)
+    assert(UI.tabPanels.wishlist.shown and not UI.tabPanels.prep.shown)
     UI.selected = "Alpha-Realm"
     UI:RefreshDetail()
     assert(not UI.itemInput.shown and not UI.noteHint.shown and UI.wishRows[1].shown and not UI.wishRows[1].remove.shown)
+    UI:SetTab("build")
+    assert(UI.tabPanels.build.shown and not UI.tabPanels.wishlist.shown and UI.activeTab == "build")
+    UI:SetTab("bags")
+    assert(UI.tabPanels.bags.shown and not UI.bagButton.enabled)
     leader = false
     UI:Refresh()
     assert(not UI.sidebar.shown and not UI.detailScroll.shown and UI.craftingButton.shown, "Losing leader access must hide all leader panels")
     assert(UI.selected == ET.key and #UI.rosterEntries == 1)
+    assert(not UI.profilePanel.shown and not UI.tabButtons.prep.shown)
+    UI:SetTab("prep")
+    assert(UI.activeTab == "bags", "Members must not switch to leader tools")
 end

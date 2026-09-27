@@ -19,51 +19,8 @@ local weaponTypes = { INVTYPE_WEAPON = true, INVTYPE_2HWEAPON = true,
     INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true }
 
 function Prep:InitDB()
-    if type(ET.db.prepChecklist) ~= "table" then ET.db.prepChecklist = {} end
-    for _, category in ipairs(self.categories) do
-        local entry = ET.db.prepChecklist[category.key]
-        if type(entry) ~= "table" then
-            entry = { minimum = 1, ids = {} }
-            ET.db.prepChecklist[category.key] = entry
-        end
-        if type(entry.ids) ~= "table" then entry.ids = {} end
-        if type(entry.minimum) ~= "number" then entry.minimum = 1 end
-    end
-end
-
-function Prep:ParseRequirement(key, idsText, minimumText)
-    local category
-    for _, candidate in ipairs(self.categories) do
-        if candidate.key == key then category = candidate; break end
-    end
-    if not category then return false, "Unknown supply category." end
-    local minimum = tonumber(minimumText)
-    if not minimum or minimum % 1 ~= 0 or minimum < 1 or minimum > 999 then
-        return false, "Minimum must be a whole number from 1 to 999."
-    end
-    local ids, seen = {}, {}
-    for token in (idsText or ""):gmatch("[^,%s]+") do
-        local id = tonumber(token)
-        if not id or id % 1 ~= 0 or id < 1 or id > 99999999 then
-            return false, "Enter item IDs separated by commas."
-        end
-        if not seen[id] then ids[#ids + 1], seen[id] = id, true end
-    end
-    if #ids > 20 then return false, "Use at most 20 acceptable items per category." end
-    return { minimum = minimum, ids = ids }
-end
-
-function Prep:SaveChecklist(values)
-    local checklist = {}
-    for _, category in ipairs(self.categories) do
-        local row = values[category.key]
-        local entry, err = self:ParseRequirement(category.key, row.ids, row.minimum)
-        if not entry then return false, category.label .. ": " .. err end
-        checklist[category.key] = entry
-    end
-    ET.db.prepChecklist = checklist
-    if ET.UI then ET.UI:Refresh() end
-    return true
+    -- Supply policy is automatic; older officer-specific checklists no longer apply.
+    ET.db.prepChecklist = nil
 end
 
 local function slotName(index)
@@ -79,19 +36,111 @@ end
 local function shouldEnchant(index, link)
     if enchantSlots[index] then return true end
     if index ~= 17 then return false end
-    if not C_Item or not C_Item.GetItemInfoInstant then return false end
+    if link == "" then return false end
+    if not C_Item or not C_Item.GetItemInfoInstant then return nil end
     local ok, _, _, _, equipType = pcall(C_Item.GetItemInfoInstant, link)
-    return ok and weaponTypes[equipType] or false
+    if not ok or type(equipType) ~= "string" or equipType == "" then return nil end
+    return weaponTypes[equipType] == true
+end
+
+local requestedItems = {}
+local function itemName(id, link)
+    local name = link and link:match("%[(.-)%]") or GetItemInfo(id)
+    if not name and not requestedItems[id] and C_Item and C_Item.RequestLoadItemDataByID then
+        requestedItems[id] = true
+        C_Item.RequestLoadItemDataByID(id)
+    end
+    return name or ("Item #" .. id)
+end
+
+local function readable(value, kind)
+    return not (issecretvalue and issecretvalue(value)) and type(value) == kind
+end
+
+local function itemDataReady(link)
+    local id = tonumber(link:match("item:(%d+)"))
+    if not id or not C_Item or not C_Item.IsItemDataCachedByID then return true end
+    local ok, cached = pcall(C_Item.IsItemDataCachedByID, id)
+    if not ok or not readable(cached, "boolean") then return false end
+    if not cached and not requestedItems[id] and C_Item.RequestLoadItemDataByID then
+        requestedItems[id] = true
+        C_Item.RequestLoadItemDataByID(id)
+    end
+    return cached
+end
+
+function Prep:GearDetails(snapshot)
+    local rows = {}
+    for index, slot in ipairs(ET.slots) do
+        local link = snapshot.gear[index] or ""
+        local enchantable = shouldEnchant(index, link)
+        local count, gemIDs, gemNames, empty = nil, {}, {}, 0
+        if link ~= "" and itemDataReady(link) and C_Item and C_Item.GetItemNumSockets then
+            local ok, value = pcall(C_Item.GetItemNumSockets, link)
+            if ok and readable(value, "number") then count = value end
+        end
+        if count then
+            for gemIndex = 1, math.min(count, 8) do
+                local ok, id = false, nil
+                if C_Item and C_Item.GetItemGemID then ok, id = pcall(C_Item.GetItemGemID, link, gemIndex) end
+                if not ok or (issecretvalue and issecretvalue(id)) or (id ~= nil and not readable(id, "number")) then
+                    count = nil
+                    break
+                elseif not id or id == 0 then
+                    empty = empty + 1
+                    gemNames[#gemNames + 1] = "Empty socket"
+                else
+                    gemIDs[#gemIDs + 1] = id
+                    gemNames[#gemNames + 1] = itemName(id)
+                end
+            end
+        end
+        if enchantable or enchantable == nil or (count and count > 0) or (link ~= "" and count == nil) then
+            local enchantField = link:match("item:%d+:([^:]*)")
+            local enchantID = enchantField ~= nil and (tonumber(enchantField) or 0) or nil
+            local enchantText = "—"
+            local enchantStatus = "none"
+            if enchantable == nil then enchantText, enchantStatus = "Enchantability unknown", "unknown"
+            elseif enchantable then
+                if link == "" then enchantText, enchantStatus = "Missing item", "missing"
+                elseif enchantID == nil then enchantText, enchantStatus = "Unknown", "unknown"
+                elseif enchantID == 0 then enchantText, enchantStatus = "Missing enchant", "missing"
+                else
+                    enchantText, enchantStatus = "Enchant #" .. enchantID, "ok"
+                    if C_TooltipInfo and C_TooltipInfo.GetHyperlink then
+                        local ok, data = pcall(C_TooltipInfo.GetHyperlink, link)
+                        local kind = Enum and Enum.TooltipDataLineType and Enum.TooltipDataLineType.ItemEnchantmentPermanent
+                        if ok and type(data) == "table" and type(data.lines) == "table" and kind then
+                            for _, line in ipairs(data.lines) do
+                                if readable(line.type, "number") and line.type == kind and readable(line.leftText, "string") then
+                                    enchantText = line.leftText
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            rows[#rows + 1] = { index = index, slot = slot[2], link = link, enchantID = enchantID,
+                enchantText = enchantText, enchantStatus = enchantStatus, gemIDs = gemIDs,
+                gemText = link == "" and "—" or count == nil and "Sockets unknown"
+                    or count == 0 and "No sockets" or table.concat(gemNames, ", "),
+                gemStatus = link == "" and "none" or count == nil and "unknown"
+                    or empty > 0 and "missing" or count > 0 and "ok" or "none" }
+        end
+    end
+    return rows
 end
 
 local function getEmptySockets(link)
     if not C_Item or not C_Item.GetItemNumSockets or not C_Item.GetItemGemID then return nil end
+    if not itemDataReady(link) then return nil end
     local ok, count = pcall(C_Item.GetItemNumSockets, link)
-    if not ok or type(count) ~= "number" then return nil end
+    if not ok or not readable(count, "number") then return nil end
     local empty = 0
     for index = 1, math.min(count, 8) do
         local gemOK, gemID = pcall(C_Item.GetItemGemID, link, index)
-        if not gemOK then return nil end
+        if not gemOK or (issecretvalue and issecretvalue(gemID)) then return nil end
         if not gemID or gemID == 0 then empty = empty + 1 end
     end
     return empty
@@ -99,23 +148,24 @@ end
 
 local function bagCounts(inventory)
     if not inventory or type(inventory.containers) ~= "table" then return nil end
-    local totals, oldest = {}, math.huge
+    local totals, oldest, links = {}, math.huge, {}
     for bagID = 0, ET.Inventory:BagCount() - 1 do
         local bag = inventory.containers[bagID]
         if not bag or type(bag.items) ~= "table" then return nil end
         oldest = math.min(oldest, bag.updated or 0)
         for _, item in ipairs(bag.items) do
             totals[item.id] = (totals[item.id] or 0) + item.count
+            links[item.id] = item.link
         end
     end
-    return totals, oldest
+    return totals, oldest, links
 end
 
 function Prep:Analyze(snapshot, inventory)
     local result = { gearIssues = {}, supplyIssues = {}, supplyLines = {}, notes = {},
         missingGear = 0, missingEnchants = 0, emptySockets = 0, repairCount = 0,
         unknownEnchants = 0, unknownSockets = 0, unknownDurability = 0,
-        configuredSupplies = 0, supplyUnknown = false, bagStale = false }
+        configuredSupplies = #self.categories, supplyUnknown = false, bagStale = false, supplies = {} }
     for _, index in ipairs(requiredSlots) do
         if not snapshot.gear[index] or snapshot.gear[index] == "" then
             result.missingGear = result.missingGear + 1
@@ -125,7 +175,9 @@ function Prep:Analyze(snapshot, inventory)
     local unknownSockets, unknownEnchants, unknownDurability = 0, 0, 0
     for index, link in ipairs(snapshot.gear) do
         if link ~= "" then
-            if shouldEnchant(index, link) then
+            local enchantable = shouldEnchant(index, link)
+            if enchantable == nil then unknownEnchants = unknownEnchants + 1
+            elseif enchantable then
                 local enchanted = hasEnchant(link)
                 if enchanted == false then
                     result.missingEnchants = result.missingEnchants + 1
@@ -151,7 +203,7 @@ function Prep:Analyze(snapshot, inventory)
     if unknownSockets > 0 then result.notes[#result.notes + 1] = "Socket status unavailable for " .. unknownSockets .. " item(s)." end
     if unknownDurability > 0 then result.notes[#result.notes + 1] = "Durability unavailable for " .. unknownDurability .. " item(s)." end
 
-    local totals, bagUpdated = bagCounts(inventory)
+    local totals, bagUpdated, links = bagCounts(inventory)
     if totals then
         result.bagUpdated = bagUpdated
         if time() - bagUpdated > 86400 then
@@ -160,20 +212,25 @@ function Prep:Analyze(snapshot, inventory)
         end
     end
     for _, category in ipairs(self.categories) do
-        local policy = ET.db.prepChecklist[category.key]
-        if #policy.ids == 0 then
-            result.supplyLines[#result.supplyLines + 1] = category.label .. ": not configured"
-        elseif not totals then
-            result.configuredSupplies = result.configuredSupplies + 1
+        local supply = { key = category.key, label = category.label, minimum = 1, items = {}, count = 0 }
+        result.supplies[#result.supplies + 1] = supply
+        if not totals then
             result.supplyUnknown = true
+            supply.status = "unknown"
             result.supplyLines[#result.supplyLines + 1] = category.label .. ": bag data unavailable"
         else
-            result.configuredSupplies = result.configuredSupplies + 1
-            local count = 0
-            for _, id in ipairs(policy.ids) do count = count + (totals[id] or 0) end
-            result.supplyLines[#result.supplyLines + 1] = category.label .. ": " .. count .. "/" .. policy.minimum
-            if count < policy.minimum then
-                result.supplyIssues[#result.supplyIssues + 1] = category.label .. " short by " .. (policy.minimum - count)
+            local seen = {}
+            for _, id in ipairs(ET.Consumables.categories[category.key]) do
+                if not seen[id] and (totals[id] or 0) > 0 then
+                    seen[id] = true
+                    supply.count = supply.count + totals[id]
+                    supply.items[#supply.items + 1] = { id = id, count = totals[id], name = itemName(id, links[id]) }
+                end
+            end
+            supply.status = result.bagStale and "stale" or supply.count >= 1 and "ok" or "missing"
+            result.supplyLines[#result.supplyLines + 1] = category.label .. ": " .. supply.count .. "/1"
+            if supply.count < 1 then
+                result.supplyIssues[#result.supplyIssues + 1] = category.label .. " missing"
             end
         end
     end

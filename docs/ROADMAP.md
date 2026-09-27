@@ -1,6 +1,6 @@
 # Roadmap
 
-The addon now shares character snapshots, wishlists, optional SimC exports, carried bags, and profession recipe scans. The officer's raid prep overview uses those snapshots and a local supply checklist. The crafting directory is available to every guild rank. Possible additions, in rough priority order:
+The addon now shares character snapshots, wishlists, SimC exports, carried bags, and profession recipe scans. Character tools use Raid prep, Build & SimC, Bags, and Wishlist tabs. The officer's raid prep view uses those snapshots and an automatic current-expansion supply catalogue with a minimum of one per category. The crafting directory is available to every guild rank. Possible additions, in rough priority order:
 
 1. **Loot map:** pick a raid boss or drop and see everyone who has marked it as wanted, with their notes.
 2. **Alt linking:** let a member group their own characters under one display name.

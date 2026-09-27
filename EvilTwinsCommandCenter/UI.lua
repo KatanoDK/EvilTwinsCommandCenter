@@ -110,71 +110,6 @@ function UI:ShowCopy(title, text)
     self.copyFrame.edit:HighlightText()
 end
 
-function UI:CreatePrepFrame()
-    if self.prepFrame then return end
-    local frame = CreateFrame("Frame", "EvilTwinsCCPrepFrame", UIParent, "BackdropTemplate")
-    frame:SetSize(850, 510)
-    frame:SetPoint("CENTER")
-    frame:SetFrameStrata("DIALOG")
-    ET:StyleWindow(frame)
-    frame:EnableMouse(true)
-    frame:SetMovable(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-    frame:Hide()
-    label(frame, "RAID PREP SUPPLY SETTINGS", "GameFontNormalLarge"):SetPoint("TOPLEFT", 24, -22)
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-    label(frame, "Saved on this officer's installation.", "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -52)
-    label(frame, "Acceptable item IDs are alternatives; the minimum counts all matching items in carried bags.",
-        "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -78)
-    label(frame, "Supply", "GameFontNormal"):SetPoint("TOPLEFT", 25, -109)
-    label(frame, "Acceptable item IDs, separated by commas", "GameFontNormal"):SetPoint("TOPLEFT", 225, -109)
-    label(frame, "Minimum", "GameFontNormal"):SetPoint("TOPLEFT", 725, -109)
-    self.prepFields = {}
-    for index, category in ipairs(ET.RaidPrep.categories) do
-        local y = -138 - (index - 1) * 52
-        label(frame, category.label, "GameFontHighlight"):SetPoint("TOPLEFT", 25, y - 6)
-        local ids = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-        ids:SetSize(460, 25)
-        ids:SetPoint("TOPLEFT", 233, y)
-        ids:SetAutoFocus(false)
-        ids:SetScript("OnEscapePressed", ids.ClearFocus)
-        local minimum = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-        minimum:SetSize(65, 25)
-        minimum:SetPoint("TOPLEFT", 734, y)
-        minimum:SetAutoFocus(false)
-        minimum:SetScript("OnEscapePressed", minimum.ClearFocus)
-        self.prepFields[category.key] = { ids = ids, minimum = minimum }
-    end
-    local save = button(frame, "Save settings", 150, 27, function()
-        local values = {}
-        for _, category in ipairs(ET.RaidPrep.categories) do
-            local row = UI.prepFields[category.key]
-            values[category.key] = { ids = row.ids:GetText(), minimum = row.minimum:GetText() }
-        end
-        local ok, err = ET.RaidPrep:SaveChecklist(values)
-        if not ok then ET:Print(err); return end
-        frame:Hide()
-        ET:Print("Raid prep supply settings saved.")
-    end)
-    save:SetPoint("BOTTOMRIGHT", -25, 24)
-    self.prepFrame = frame
-end
-
-function UI:ShowPrepSettings()
-    if not ET:CanUseLeaderTools() then return end
-    self:CreatePrepFrame()
-    for _, category in ipairs(ET.RaidPrep.categories) do
-        local entry = ET.db.prepChecklist[category.key]
-        local row = self.prepFields[category.key]
-        row.ids:SetText(table.concat(entry.ids, ", "))
-        row.minimum:SetText(tostring(entry.minimum))
-    end
-    self.prepFrame:Show()
-end
-
 local function prepStatus(count, unknown)
     if count > 0 then return tostring(count) .. " missing" end
     return unknown > 0 and "Unknown" or "OK"
@@ -210,8 +145,6 @@ function UI:CreateOverviewFrame()
     label(frame, "GUILD RAID PREP", "GameFontNormalLarge"):SetPoint("TOPLEFT", 24, -22)
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
-    local settings = button(frame, "Supply settings", 140, 25, function() UI:ShowPrepSettings() end)
-    settings:SetPoint("TOPRIGHT", -40, -18)
     local refresh = button(frame, "Refresh guild gear", 160, 25, function()
         local ok, err = ET.Comm:RequestGuildGear()
         if not ok then ET:Print(err); return end
@@ -219,8 +152,8 @@ function UI:CreateOverviewFrame()
         UI:RefreshOverview()
         ET:Print("Refreshing gear from online guildmates with the addon.")
     end)
-    refresh:SetPoint("RIGHT", settings, "LEFT", -10, 0)
-    label(frame, "Last shared state. Click a character for the exact missing slots and items.",
+    refresh:SetPoint("TOPRIGHT", -40, -18)
+    label(frame, "Saved gear & bags. Supplies: any Midnight option, minimum 1. Click a character for details.",
         "GameFontHighlightSmall"):SetPoint("TOPLEFT", 25, -55)
     self.overviewRefreshStatus = label(frame, "", "GameFontHighlightSmall")
     self.overviewRefreshStatus:SetPoint("TOPLEFT", 25, -74)
@@ -314,7 +247,6 @@ function UI:RefreshOverview()
             local supplies = result.supplyUnknown and "Unknown"
                 or result.bagStale and result.configuredSupplies > 0 and "Stale"
                 or #result.supplyIssues > 0 and (#result.supplyIssues .. " short")
-                or result.configuredSupplies == 0 and "Not set"
                 or "OK"
             setPrepStatus(row.labels[6], supplies)
             row.labels[7]:SetText(date("%m/%d %H:%M", entry.snapshot.updated))
@@ -416,7 +348,7 @@ function UI:Create()
     self.rosterEmpty:SetWidth(222)
 
     local detailScroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    detailScroll:SetPoint("TOPLEFT", 302, -62)
+    detailScroll:SetPoint("TOPLEFT", 302, -202)
     detailScroll:SetPoint("BOTTOMRIGHT", -38, 48)
     self.detailScroll = detailScroll
     local detail = CreateFrame("Frame", nil, detailScroll)
@@ -425,8 +357,8 @@ function UI:Create()
     detailScroll:SetScrollChild(detail)
     self.detail = detail
 
-    local profilePanel = panel(detail, 686, 174)
-    profilePanel:SetPoint("TOPLEFT")
+    local profilePanel = panel(frame, 686, 88)
+    profilePanel:SetPoint("TOPLEFT", 302, -62)
     self.profilePanel = profilePanel
 
     local heading = label(profilePanel, "Select a character", "GameFontNormalLarge")
@@ -443,13 +375,42 @@ function UI:Create()
     timestamp:SetWidth(650)
     self.timestamp = timestamp
 
-    local talentButton = button(profilePanel, "Copy talent build", 160, 26, function()
+    self.tabPanels, self.tabButtons = {}, {}
+    self.activeTab = "prep"
+    local tabs = { { "prep", "Raid prep" }, { "build", "Build & SimC" },
+        { "bags", "Bags" }, { "wishlist", "Wishlist" } }
+    for index, entry in ipairs(tabs) do
+        local key = entry[1]
+        local tab = button(frame, entry[2], 165, 27, function() UI:SetTab(key) end)
+        tab:SetPoint("TOPLEFT", 302 + (index - 1) * 173, -162)
+        self.tabButtons[key] = tab
+    end
+    local buildPanel = panel(detail, 686, 152)
+    buildPanel:SetPoint("TOPLEFT")
+    self.tabPanels.build = buildPanel
+    label(buildPanel, "TALENTS & SIMULATIONCRAFT", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
+    label(buildPanel, "Copy the active talent build or the last shared SimC export.", "GameFontHighlightSmall")
+        :SetPoint("TOPLEFT", 16, -42)
+    self.buildStatus = label(buildPanel, "", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
+    self.buildStatus:SetPoint("TOPLEFT", 16, -115)
+    self.buildStatus:SetWidth(650)
+    local bagsPanel = panel(detail, 686, 152)
+    bagsPanel:SetPoint("TOPLEFT")
+    self.tabPanels.bags = bagsPanel
+    label(bagsPanel, "CARRIED BAGS", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
+    self.bagStatus = label(bagsPanel, "", "GameFontHighlightSmall")
+    self.bagStatus:SetPoint("TOPLEFT", 16, -42)
+    self.bagStatus:SetWidth(650)
+    label(bagsPanel, "Last shared contents; offline characters keep their saved snapshot.", "GameFontHighlightSmall",
+        { 0.65, 0.7, 0.8 }):SetPoint("TOPLEFT", 16, -116)
+
+    local talentButton = button(buildPanel, "Copy talent build", 160, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if snapshot and snapshot.talent ~= "" then UI:ShowCopy("Talent build: " .. snapshot.name, snapshot.talent) end
     end)
-    talentButton:SetPoint("TOPLEFT", 16, -94)
+    talentButton:SetPoint("TOPLEFT", 16, -72)
     self.talentButton = talentButton
-    local simcButton = button(profilePanel, "View last SimC", 150, 26, function()
+    local simcButton = button(buildPanel, "View last SimC", 150, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         local entry = ET:GetCachedSimC(UI.selected, snapshot.guid)
@@ -458,7 +419,7 @@ function UI:Create()
     simcButton:SetPoint("LEFT", talentButton, "RIGHT", 8, 0)
     self.simcButton = simcButton
 
-    local refreshSimc = button(profilePanel, "Request fresh", 150, 26, function()
+    local refreshSimc = button(buildPanel, "Request fresh", 150, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         if UI.selected == ET.key then
@@ -478,64 +439,65 @@ function UI:Create()
     refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 8, 0)
     self.refreshSimcButton = refreshSimc
 
-    local bagButton = button(profilePanel, "View bags", 125, 26, function()
+    local bagButton = button(bagsPanel, "View bags", 150, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         local content = ET.Inventory:Format(UI.selected, snapshot.guid)
         if content then UI:ShowCopy("Bags: " .. UI.selected, content) end
     end)
-    bagButton:SetPoint("LEFT", refreshSimc, "RIGHT", 8, 0)
+    bagButton:SetPoint("TOPLEFT", 16, -72)
     self.bagButton = bagButton
 
-    local prepButton = button(profilePanel, "Raid prep report", 160, 26, function()
+    local prepPanel = panel(detail, 686, 500)
+    prepPanel:SetPoint("TOPLEFT")
+    self.tabPanels.prep = prepPanel
+    local prepButton = button(prepPanel, "Copy report", 130, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         local inventory = ET.Inventory:Get(UI.selected, snapshot.guid)
         UI:ShowCopy("Raid prep: " .. UI.selected, ET.RaidPrep:Report(snapshot, inventory))
     end)
-    prepButton:SetPoint("TOPLEFT", 16, -132)
+    prepButton:SetPoint("TOPRIGHT", -16, -10)
     self.prepButton = prepButton
-    local prepSettings = button(profilePanel, "Prep settings", 150, 26, function() UI:ShowPrepSettings() end)
-    prepSettings:SetPoint("LEFT", prepButton, "RIGHT", 8, 0)
-    self.prepSettingsButton = prepSettings
 
-    local gearPanel = panel(detail, 686, 340)
-    gearPanel:SetPoint("TOPLEFT", 0, -186)
-    self.gearPanel = gearPanel
-    local gearHeading = label(gearPanel, "EQUIPPED GEAR", "GameFontNormal")
-    gearHeading:SetPoint("TOPLEFT", 16, -14)
-    for index, slot in ipairs(ET.slots) do
-        local column = (index - 1) >= 10 and 1 or 0
-        local rowIndex = column == 0 and index - 1 or index - 11
-        local row = CreateFrame("Button", nil, gearPanel)
-        row:SetSize(320, 27)
-        row:SetPoint("TOPLEFT", 16 + column * 334, -43 - rowIndex * 28)
-        local background = row:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints()
-        background:SetColorTexture(1, 1, 1, rowIndex % 2 == 0 and 0.035 or 0)
-        row.slot = label(row, slot[2], "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
-        row.slot:SetPoint("LEFT", 7, 0)
-        row.slot:SetWidth(76)
-        row.item = label(row, "", "GameFontNormalSmall")
-        row.item:SetPoint("LEFT", 85, 0)
-        row.item:SetWidth(228)
+    label(prepPanel, "ENCHANTS & GEMS", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
+    self.prepSummary = label(prepPanel, "", "GameFontHighlightSmall")
+    self.prepSummary:SetPoint("TOPLEFT", 16, -44)
+    self.prepSummary:SetWidth(650)
+    for _, column in ipairs({ { "Slot", 16 }, { "Current enchant", 100 }, { "Current gems", 374 } }) do
+        label(prepPanel, column[1], "GameFontNormalSmall"):SetPoint("TOPLEFT", column[2], -72)
+    end
+    self.gearRows = {}
+    self.supplyHeading = label(prepPanel, "SUPPLIES", "GameFontNormal")
+    self.supplyPolicy = label(prepPanel, "Any Midnight option • minimum 1 in carried bags", "GameFontHighlightSmall",
+        { 0.65, 0.7, 0.8 })
+    self.supplyRows = {}
+    for index, category in ipairs(ET.RaidPrep.categories) do
+        local row = CreateFrame("Button", nil, prepPanel)
+        row:SetSize(650, 34)
+        row.title = label(row, category.label, "GameFontHighlightSmall")
+        row.title:SetPoint("LEFT", 0, 0)
+        row.title:SetWidth(148)
+        row.items = label(row, "", "GameFontHighlightSmall")
+        row.items:SetPoint("LEFT", 154, 0)
+        row.items:SetWidth(420)
+        row.status = label(row, "", "GameFontHighlightSmall")
+        row.status:SetPoint("RIGHT", 0, 0)
+        row.status:SetWidth(65)
         row:SetScript("OnEnter", function(self)
-            if not self.link or self.link == "" then return end
+            if not self.supply then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetHyperlink(self.link)
+            GameTooltip:AddLine(self.supply.label .. " — minimum 1")
+            for _, item in ipairs(self.supply.items) do GameTooltip:AddLine(item.name .. " x" .. item.count) end
             GameTooltip:Show()
         end)
         row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        row:SetScript("OnClick", function(self)
-            if self.link and self.link ~= "" and IsModifiedClick("CHATLINK") then
-                ChatEdit_InsertLink(self.link)
-            end
-        end)
-        self.gearRows[index] = row
+        self.supplyRows[index] = row
     end
 
     local wishPanel = panel(detail, 686, 130)
-    wishPanel:SetPoint("TOPLEFT", 0, -538)
+    wishPanel:SetPoint("TOPLEFT")
+    self.tabPanels.wishlist = wishPanel
     self.wishPanel = wishPanel
     local wishHeading = label(wishPanel, "GEAR WISHLIST", "GameFontNormal")
     wishHeading:SetPoint("TOPLEFT", 16, -14)
@@ -613,6 +575,105 @@ function UI:Create()
     self.memberRank = memberRank
     self.memberMessage = memberMessage
     frame:SetScript("OnShow", function() UI:Refresh() end)
+    frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+    frame:SetScript("OnEvent", function()
+        if frame:IsShown() and ET:CanUseLeaderTools() then UI:RefreshDetail() end
+    end)
+end
+
+function UI:SetTab(key)
+    if not ET:CanUseLeaderTools() or not self.tabPanels[key] then return end
+    self.activeTab = key
+    self.detailScroll:SetVerticalScroll(0)
+    self:RefreshDetail()
+end
+
+function UI:RefreshTabs()
+    for key, widget in pairs(self.tabPanels) do
+        widget:SetShown(key == self.activeTab)
+        self.tabButtons[key]:SetEnabled(key ~= self.activeTab)
+    end
+    self.detail:SetHeight(self.tabPanels[self.activeTab]:GetHeight() + 12)
+end
+
+local statusColors = { ok = { 0.4, 1, 0.5 }, missing = { 1, 0.4, 0.4 },
+    unknown = { 1, 0.8, 0.35 }, stale = { 1, 0.8, 0.35 }, none = { 0.65, 0.7, 0.8 } }
+local function readinessText(widget, text, status)
+    widget:SetText(text)
+    widget:SetTextColor(unpack(statusColors[status] or statusColors.unknown))
+end
+
+function UI:RefreshPrep(snapshot, inventory)
+    local result = ET.RaidPrep:Analyze(snapshot, inventory)
+    self.prepSummary:SetText("Enchants: " .. prepStatus(result.missingEnchants, result.unknownEnchants)
+        .. "  •  Gems: " .. prepStatus(result.emptySockets, result.unknownSockets)
+        .. "  •  Repairs: " .. prepStatus(result.repairCount, result.unknownDurability)
+        .. "  •  Gear: " .. prepStatus(result.missingGear, 0))
+    local entries = ET.RaidPrep:GearDetails(snapshot)
+    for index, entry in ipairs(entries) do
+        local row = self.gearRows[index]
+        if not row then
+            row = CreateFrame("Button", nil, self.tabPanels.prep)
+            row:SetSize(650, 36)
+            local background = row:CreateTexture(nil, "BACKGROUND")
+            background:SetAllPoints()
+            background:SetColorTexture(1, 1, 1, index % 2 == 0 and 0.035 or 0)
+            row.slot = label(row, "", "GameFontHighlightSmall")
+            row.slot:SetPoint("LEFT", 0, 0)
+            row.slot:SetWidth(78)
+            row.enchant = label(row, "", "GameFontHighlightSmall")
+            row.enchant:SetPoint("LEFT", 84, 0)
+            row.enchant:SetWidth(264)
+            row.gems = label(row, "", "GameFontHighlightSmall")
+            row.gems:SetPoint("LEFT", 358, 0)
+            row.gems:SetWidth(292)
+            for _, cell in ipairs({ row.enchant, row.gems }) do
+                cell:SetWordWrap(true)
+                cell:SetMaxLines(2)
+                cell:SetHeight(32)
+            end
+            row:SetScript("OnEnter", function(self)
+                if not self.entry then return end
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                if self.entry.link ~= "" then GameTooltip:SetHyperlink(self.entry.link)
+                else GameTooltip:AddLine(self.entry.slot) end
+                GameTooltip:AddLine("Enchant: " .. self.entry.enchantText, 0.8, 0.85, 0.95, true)
+                GameTooltip:AddLine("Gems: " .. self.entry.gemText, 0.8, 0.85, 0.95, true)
+                GameTooltip:Show()
+            end)
+            row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            row:SetScript("OnClick", function(self)
+                if self.entry.link ~= "" and IsModifiedClick("CHATLINK") then ChatEdit_InsertLink(self.entry.link) end
+            end)
+            self.gearRows[index] = row
+        end
+        row.entry = entry
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", 16, -94 - (index - 1) * 38)
+        row.slot:SetText(entry.slot)
+        readinessText(row.enchant, entry.enchantText, entry.enchantStatus)
+        readinessText(row.gems, entry.gemText, entry.gemStatus)
+        row:Show()
+    end
+    for index = #entries + 1, #self.gearRows do self.gearRows[index]:Hide() end
+    local supplyY = 110 + #entries * 38
+    self.supplyHeading:ClearAllPoints()
+    self.supplyHeading:SetPoint("TOPLEFT", 16, -supplyY)
+    self.supplyPolicy:ClearAllPoints()
+    self.supplyPolicy:SetPoint("TOPLEFT", 16, -supplyY - 25)
+    for index, supply in ipairs(result.supplies) do
+        local row, names = self.supplyRows[index], {}
+        row.supply = supply
+        for _, item in ipairs(supply.items) do names[#names + 1] = item.name .. " x" .. item.count end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", 16, -supplyY - 50 - (index - 1) * 36)
+        row.items:SetText(#names > 0 and table.concat(names, ", ")
+            or supply.status == "unknown" and "Bag data unavailable" or "None in saved bags")
+        local text = supply.status == "unknown" and "Unknown" or supply.status == "stale" and "Stale"
+            or supply.count > 0 and (supply.count .. "/1") or "Missing"
+        readinessText(row.status, text, supply.status)
+    end
+    self.tabPanels.prep:SetHeight(supplyY + 50 + #result.supplies * 36 + 16)
 end
 
 function UI:RenderRoster()
@@ -706,17 +767,22 @@ function UI:RefreshDetail()
     self.timestamp:SetText("Snapshot: " .. date("%Y-%m-%d %H:%M", snapshot.updated)
         .. (cached and ("    SimC: " .. date("%Y-%m-%d %H:%M", cached.updated)) or "    SimC: none cached"))
     self.refreshSimcButton:SetText(isSelf and "Generate SimC" or "Request fresh")
-    self.bagButton:SetEnabled(ET.Inventory:Get(self.selected, snapshot.guid) ~= nil)
-    for index, row in ipairs(self.gearRows) do
-        local link = snapshot.gear[index]
-        row.link = link
-        if link and link ~= "" then
-            local itemName = link:match("%[(.-)%]") or "Item"
-            row.item:SetText(itemName)
-        else
-            row.item:SetText("—")
+    self.buildStatus:SetText(isSelf and "Generate a new export from your current build and equipped gear."
+        or "Request fresh needs this character online with the addon enabled.")
+    local inventory = ET.Inventory:Get(self.selected, snapshot.guid)
+    self.bagButton:SetEnabled(inventory ~= nil)
+    local totalItems, complete, oldest = 0, inventory ~= nil, math.huge
+    if inventory then
+        for bagID = 0, ET.Inventory:BagCount() - 1 do
+            local bag = inventory.containers[bagID]
+            if bag then totalItems, oldest = totalItems + #bag.items, math.min(oldest, bag.updated or 0)
+            else complete = false end
         end
     end
+    self.bagStatus:SetText(not inventory and "No bag snapshot received yet."
+        or not complete and "Partial bag snapshot — waiting for the remaining bags."
+        or (totalItems .. " item stacks  •  Captured " .. date("%Y-%m-%d %H:%M", oldest)))
+    self:RefreshPrep(snapshot, inventory)
     self.itemInput:SetShown(isSelf)
     self.noteInput:SetShown(isSelf)
     self.addButton:SetShown(isSelf)
@@ -743,24 +809,24 @@ function UI:RefreshDetail()
     end
     local wishHeight = (isSelf and 98 or 46) + math.max(1, #wishlist) * 30 + 16
     self.wishPanel:SetHeight(wishHeight)
-    self.detail:SetHeight(538 + wishHeight + 12)
+    self:RefreshTabs()
 end
 
 function UI:Refresh()
     if not self.frame then return end
     local isLeader = ET:CanUseLeaderTools()
     self.overviewButton:SetShown(isLeader)
-    self.prepSettingsButton:SetShown(isLeader)
     self.frame:SetWidth(isLeader and 1050 or 650)
     self.frame:SetHeight(isLeader and 720 or 135)
     self.sidebar:SetShown(isLeader)
+    self.profilePanel:SetShown(isLeader)
+    for _, tab in pairs(self.tabButtons) do tab:SetShown(isLeader) end
     self.detailScroll:SetShown(isLeader)
     self.footer:SetShown(isLeader)
     self.memberMessage:SetShown(not isLeader)
     self.memberRank:SetShown(not isLeader)
     if not isLeader then
         if self.overviewFrame then self.overviewFrame:Hide() end
-        if self.prepFrame then self.prepFrame:Hide() end
         if self.selected ~= ET.key and self.copyFrame then self.copyFrame:Hide() end
     end
     self:RefreshRoster()
