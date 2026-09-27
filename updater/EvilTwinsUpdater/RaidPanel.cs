@@ -147,7 +147,8 @@ internal sealed class RaidPanel : UserControl
         cancel.Visible = IsRunning;
         var selected = SelectedResult;
         detail.Text = selected != null ? selected.Report.Assumptions + (selected.Warnings.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, selected.Warnings) : "")
-            : SelectedMember?.State ?? "Select a player to copy their export or share a completed result.";
+            : SelectedMember is { } member ? states.GetValueOrDefault(member.Key, member.State).Replace("\n", Environment.NewLine)
+                : "Select a player to copy their export or share a completed result.";
     }
 
     private string? Prompt(string title, string hint, int maximum)
