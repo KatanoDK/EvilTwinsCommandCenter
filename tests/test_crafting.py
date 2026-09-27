@@ -50,3 +50,4 @@ upgrade_lua.execute((root / "tests" / "upgrades_spec.lua").read_text(encoding="u
 for name in ("Protocol", "SimC", "Upgrades", "Comm"):
     upgrade_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8"))
 upgrade_lua.globals().RunUpgradeChecks((root / "tests" / "fixtures" / "droptimizer-code.txt").read_text(encoding="utf-8"))
+upgrade_lua.globals().RunTrashUpgradeChecks((root / "tests" / "fixtures" / "droptimizer-trash-code.txt").read_text(encoding="utf-8"))

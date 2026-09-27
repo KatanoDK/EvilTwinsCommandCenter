@@ -18,6 +18,13 @@ internal static class DropTests
         Assert(report.Gear["head"] == "12345;8001;2/6;3/9;", "Gear fingerprints must normalize gem/bonus ordering.");
         Assert(report.Gear.ContainsKey("main_hand"), "Profile camelCase weapon slots must normalize to SimC slot names.");
         Assert(report.ImportCode() == File.ReadAllText("tests/fixtures/droptimizer-code.txt"), "Lua codec fixture differs from the actual C# export.");
+        using var trashDocument = JsonDocument.Parse(File.ReadAllText("tests/fixtures/droptimizer-trash.json"));
+        var trashReport = DroptimizerClient.Parse(trashDocument.RootElement, "FixtureTrashReport123");
+        Assert(trashReport.Items.Count == 2 && trashReport.Items[1].BossId == -97
+            && trashReport.Items[1].Boss == "Trash Drop" && trashReport.Items[1].DropId == 271436,
+            "Raid trash loot must retain its signed encounter ID alongside boss loot.");
+        Assert(trashReport.ImportCode() == File.ReadAllText("tests/fixtures/droptimizer-trash-code.txt"),
+            "Trash loot fixture must match the actual C# import code.");
         var unicode = report with { Title = "Fixture – Épreuve", Name = "Éowyn" };
         var code = unicode.ImportCode();
         var bytes = Convert.FromBase64String(code[5..]);

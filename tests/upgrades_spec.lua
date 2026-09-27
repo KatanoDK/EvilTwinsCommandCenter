@@ -68,3 +68,29 @@ function RunUpgradeChecks(code)
     assert(#U:Get("Testtoon-TestRealm", 1480) == 0, "Reports are only accepted over leader whispers")
     print("PASS: cross-language Droptimizer import, guild/region matching, bounds, freshness, duplicate reports, and leader-only chunked sharing.")
 end
+
+function RunTrashUpgradeChecks(code)
+    local U, P = ET.Upgrades, ET.Protocol
+    local raw = P:FromBase64(code:sub(6))
+    local report = U:Decode(raw)
+    assert(report and #report.items == 2, "Trash loot must not cause the entire raid report to be discarded")
+    assert(report.items[1].bossID == 2895 and report.items[2].bossID == -97
+        and report.items[2].boss == "Trash Drop" and report.items[2].dropID == 271436)
+    ET.db.upgradeReports = {}
+    assert(U:Import(code), "A leader must be able to import another character's report with trash loot")
+    assert(#U:Get("Testtoon-TestRealm", 1480) == 1, "Imported upgrades must belong to the simulated character")
+    ET.Comm.queue = {}
+    assert(ET.Comm:PublishUpgrades(report, "Leader-TestRealm"))
+    local messages = ET.Comm.queue
+    ET.db.upgradeReports = {}
+    for _, message in ipairs(messages) do ET.Comm:ReceiveTransfer("Leader-TestRealm", "WHISPER", message.message) end
+    local saved = U:Get("Testtoon-TestRealm", 1480)[1]
+    assert(saved and #saved.items == 2 and saved.items[2].bossID == -97, "Leader sharing must preserve trash loot")
+    local fields = P:Unpack(raw, 1500)
+    local bossIndex = 18 + tonumber(fields[16]) * 2 + 14 + 5
+    for _, invalid in ipairs({ "-100001", "100001", "-97.5", "not-an-id" }) do
+        fields[bossIndex] = invalid
+        assert(not U:Decode(P:Pack(fields)), "Signed encounter IDs must still be bounded integers")
+    end
+    print("PASS: raid trash loot decodes, imports for another character, shares with leaders, and retains encounter ID validation.")
+end

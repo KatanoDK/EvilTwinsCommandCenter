@@ -10,7 +10,7 @@ Ranks 0–5 can import a report for any current guild character in the same regi
 ## What leaders see
 
 - Up to 100 positive upgrades, ranked by estimated DPS gain and percentage against that report's baseline.
-- Drop name, simulated item level, boss or dungeon, and difficulty.
+- Drop name, simulated item level, boss, dungeon, or raid trash source, and difficulty.
 - A **Convert to tier** marker when the desired drop was simulated after conversion. The original drop ID and resulting tier ID are retained separately.
 - Report date, specialization, fight style, duration, target count, and equipped upgrade/conversion assumptions.
 - A warning when saved talents, gear, enchants, or gems differ, when a build match cannot be verified, or when the report is over a week old.

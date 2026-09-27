@@ -65,7 +65,8 @@ function Upgrades:Decode(data)
     end
     for _ = 1, itemCount do
         local drop, simulated = number(f[p], 1, 10000000, true), number(f[p + 1], 1, 10000000, true)
-        local instance, boss = number(f[p + 4], 0, 100000, true), number(f[p + 5], 0, 100000, true)
+        -- Raidbots uses signed encounter IDs for non-boss loot (e.g. -97 = Trash Drop).
+        local instance, boss = number(f[p + 4], 0, 100000, true), number(f[p + 5], -100000, 100000, true)
         local level = number(f[p + 8], 1, 2000, true)
         local gain, percent = number(f[p + 10], 0.000000001, 10000000000), number(f[p + 11], 0.000000001, 1000000)
         if not drop or not simulated or not instance or not boss or not level or not gain or not percent

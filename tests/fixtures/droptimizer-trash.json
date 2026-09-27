@@ -1,0 +1,100 @@
+{
+  "timestamp": 1700000000,
+  "sim": {
+    "players": [
+      {
+        "talents": "TEST_TALENTS",
+        "collected_data": {
+          "dps": {
+            "mean": 181180.58059704467,
+            "mean_std_dev": 46.13180446691322
+          }
+        }
+      }
+    ],
+    "profilesets": {
+      "metric": "Damage per Second",
+      "results": [
+        {
+          "name": "1320/2895/raid-heroic/268265/315/0/neck////",
+          "mean": 183892.95125861073,
+          "mean_error": 91.74670276259303
+        },
+        {
+          "name": "1320/-97/raid-heroic/271436/305/0/waist////",
+          "mean": 181483.98640979605,
+          "mean_error": 90.56787456396167
+        }
+      ]
+    }
+  },
+  "simbot": {
+    "simType": "droptimizer",
+    "parentSimId": "FixtureTrashReport123",
+    "fightStyle": "Patchwerk",
+    "fightLength": 300,
+    "enemyCount": 1,
+    "meta": {
+      "type": "droptimizer",
+      "title": "Fixture heroic raid with trash loot",
+      "rawFormData": {
+        "profile": {
+          "identity": {
+            "name": "Testtoon",
+            "realm": "test-realm",
+            "region": "us",
+            "specId": 1480
+          },
+          "equipped": {
+            "head": {
+              "id": 12345,
+              "enchant_id": 8001,
+              "bonus_id": "9/3",
+              "gem_id": "6/2"
+            }
+          }
+        },
+        "droptimizer": {
+          "upgradeEquippedMode": "none",
+          "includeConversions": true
+        }
+      },
+      "itemLibrary": [
+        {
+          "id": 268265,
+          "name": "Aqirbane Reliquary",
+          "itemLevel": 315,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-heroic",
+          "bonus_id": "13987/4799/4786/13750/12844",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271436,
+          "name": "Slitherscale Girdle",
+          "itemLevel": 305,
+          "instanceId": 1320,
+          "encounterId": -97,
+          "difficulty": "raid-heroic",
+          "bonus_id": "4799/4786/12841",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": -97,
+            "name": "Trash Drop"
+          }
+        }
+      ]
+    }
+  }
+}
