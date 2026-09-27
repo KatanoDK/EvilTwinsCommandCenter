@@ -499,7 +499,7 @@ function UI:Create()
     prepSettings:SetPoint("LEFT", prepButton, "RIGHT", 8, 0)
     self.prepSettingsButton = prepSettings
 
-    local gearPanel = panel(detail, 686, 360)
+    local gearPanel = panel(detail, 686, 340)
     gearPanel:SetPoint("TOPLEFT", 0, -186)
     self.gearPanel = gearPanel
     local gearHeading = label(gearPanel, "EQUIPPED GEAR", "GameFontNormal")
@@ -508,8 +508,8 @@ function UI:Create()
         local column = (index - 1) >= 10 and 1 or 0
         local rowIndex = column == 0 and index - 1 or index - 11
         local row = CreateFrame("Button", nil, gearPanel)
-        row:SetSize(320, 29)
-        row:SetPoint("TOPLEFT", 16 + column * 334, -43 - rowIndex * 30)
+        row:SetSize(320, 27)
+        row:SetPoint("TOPLEFT", 16 + column * 334, -43 - rowIndex * 28)
         local background = row:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
         background:SetColorTexture(1, 1, 1, rowIndex % 2 == 0 and 0.035 or 0)
@@ -535,7 +535,7 @@ function UI:Create()
     end
 
     local wishPanel = panel(detail, 686, 130)
-    wishPanel:SetPoint("TOPLEFT", 0, -558)
+    wishPanel:SetPoint("TOPLEFT", 0, -538)
     self.wishPanel = wishPanel
     local wishHeading = label(wishPanel, "GEAR WISHLIST", "GameFontNormal")
     wishHeading:SetPoint("TOPLEFT", 16, -14)
@@ -743,7 +743,7 @@ function UI:RefreshDetail()
     end
     local wishHeight = (isSelf and 98 or 46) + math.max(1, #wishlist) * 30 + 16
     self.wishPanel:SetHeight(wishHeight)
-    self.detail:SetHeight(558 + wishHeight + 12)
+    self.detail:SetHeight(538 + wishHeight + 12)
 end
 
 function UI:Refresh()
