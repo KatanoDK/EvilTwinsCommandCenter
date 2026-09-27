@@ -128,6 +128,7 @@ function UI:CreateCopyFrame()
 end
 
 function UI:ShowCopy(title, text)
+    if not ET:CanUseLeaderTools() then return end
     self:CreateCopyFrame()
     self.copyFrame.title:SetText(title)
     self.copyFrame.edit:SetText(text or "")
@@ -586,7 +587,7 @@ function UI:Create()
         "Gear, carried bags, and SimC profiles sync automatically to online leaders.",
         "GameFontHighlightSmall")
     memberMessage:SetPoint("TOPLEFT", 24, -64)
-    local memberRank = label(frame, "Crafting directory is open to all guild ranks. Gear and raid prep are for ranks 0–5.", "GameFontHighlightSmall")
+    local memberRank = label(frame, "Open the crafting directory to find guildmates who can make an item.", "GameFontHighlightSmall")
     memberRank:SetPoint("TOPLEFT", 24, -88)
     self.memberRank = memberRank
     self.memberMessage = memberMessage
@@ -605,8 +606,9 @@ function UI:SetTab(key)
 end
 
 function UI:RefreshTabs()
+    local isLeader = ET:CanUseLeaderTools()
     for key, widget in pairs(self.tabPanels) do
-        widget:SetShown(key == self.activeTab)
+        widget:SetShown(isLeader and key == self.activeTab)
         local tab, selected = self.tabButtons[key], key == self.activeTab
         tab.selected = selected
         tab.accent:SetShown(selected)
@@ -773,7 +775,11 @@ end
 
 function UI:RefreshDetail()
     if not self.frame then return end
-    if self.selected ~= ET.key and not ET:CanUseLeaderTools() then self.selected = ET.key end
+    if not ET:CanUseLeaderTools() then
+        self.selected = ET.key
+        self:RefreshTabs()
+        return
+    end
     local snapshot = ET.db.characters[self.selected]
     if not snapshot then return end
     local isSelf = self.selected == ET.key
@@ -832,7 +838,9 @@ end
 function UI:Refresh()
     if not self.frame then return end
     local isLeader = ET:CanUseLeaderTools()
+    local inGuild = IsInGuild()
     self.overviewButton:SetShown(isLeader)
+    self.craftingButton:SetShown(inGuild)
     self.frame:SetWidth(isLeader and 1050 or 650)
     self.frame:SetHeight(isLeader and 720 or 135)
     self.sidebar:SetShown(isLeader)
@@ -841,13 +849,16 @@ function UI:Refresh()
     self.detailScroll:SetShown(isLeader)
     self.footer:SetShown(isLeader)
     self.memberMessage:SetShown(not isLeader)
-    self.memberRank:SetShown(not isLeader)
+    self.memberRank:SetShown(not isLeader and inGuild)
+    self.memberMessage:SetText(inGuild and "Gear, carried bags, and SimC profiles sync automatically to online leaders."
+        or "Join a guild to use the crafting directory.")
     if not isLeader then
         if self.overviewFrame then self.overviewFrame:Hide() end
         if self.lootFrame then self.lootFrame:Hide() end
         if self.upgradeImport then self.upgradeImport:Hide() end
-        if self.selected ~= ET.key and self.copyFrame then self.copyFrame:Hide() end
+        if self.copyFrame then self.copyFrame:Hide() end
     end
+    if not inGuild and self.craftingFrame then self.craftingFrame:Hide() end
     self:RefreshRoster()
     self:RefreshDetail()
     self:RefreshOverview()

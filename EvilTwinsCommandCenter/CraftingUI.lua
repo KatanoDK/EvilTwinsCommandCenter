@@ -116,6 +116,7 @@ end
 
 function UI:RefreshCrafting(resetScroll)
     if not self.craftingFrame or not self.craftingFrame:IsShown() then return end
+    if not IsInGuild() then self.craftingFrame:Hide(); return end
     local keys = {}
     for key, entry in pairs(ET.db.crafting) do
         if type(entry) == "table" and type(entry.professions) == "table"

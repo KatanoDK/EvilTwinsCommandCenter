@@ -101,7 +101,15 @@ function CreateFrame(_, _, parent) return widget(parent) end
 function RunUIChecks()
     local UI = ET.UI
     function UI:RefreshCrafting() end
+    leader = false
     UI:Create()
+    UI.frame:Show()
+    assert(UI.craftingButton:IsShown() and UI.memberMessage:IsShown() and not UI.overviewButton:IsShown(),
+        "A member's first open must show only available features")
+    for key, tab in pairs(UI.tabButtons) do
+        assert(not tab:IsShown() and not UI.tabPanels[key].shown, "Member login must hide every leader tab")
+    end
+    leader = true
     UI.rosterScroll.height = 406
     UI:Refresh()
     assert(UI.activeTab == "prep" and UI.tabPanels.prep.shown and not UI.tabPanels.build.shown)
@@ -139,13 +147,43 @@ function RunUIChecks()
     UI:SetTab("bags")
     assert(UI.activeTab == "build" and not UI.tabPanels.bags and not UI.bagButton, "Bags must stay internal")
     assert(UI.tabButtons.build.selected and UI.tabButtons.build.accent.shown and not UI.tabButtons.prep.accent.shown)
+    -- Existing dialogs must close on demotion even when they show the player's own data.
+    UI.selected = ET.key
+    UI.copyFrame = CreateFrame("Frame", nil, UIParent)
+    UI.overviewFrame = CreateFrame("Frame", nil, UIParent)
+    UI.lootFrame = CreateFrame("Frame", nil, UIParent)
+    UI.upgradeImport = CreateFrame("Frame", nil, UIParent)
+    UI.craftingFrame = CreateFrame("Frame", nil, UIParent)
     leader = false
     UI:Refresh()
     assert(not UI.sidebar.shown and not UI.detailScroll.shown and UI.craftingButton.shown, "Losing leader access must hide all leader panels")
     assert(UI.selected == ET.key and #UI.rosterEntries == 1)
     assert(not UI.profilePanel.shown and not UI.tabButtons.prep.shown)
+    for key, tab in pairs(UI.tabButtons) do
+        assert(not tab.shown and not UI.tabPanels[key].shown, "Every leader tab and panel must be hidden")
+    end
+    for _, control in ipairs({ UI.overviewButton, UI.talentButton, UI.simcButton, UI.refreshSimcButton,
+        UI.prepButton, UI.browseLootButton, UI.addButton, UI.importUpgradeButton, UI.upgradeSelector }) do
+        assert(not control:IsShown(), "Unavailable controls must be hidden, not merely disabled")
+    end
+    assert(not UI.copyFrame.shown and not UI.overviewFrame.shown and not UI.lootFrame.shown
+        and not UI.upgradeImport.shown, "Demotion must close every leader dialog")
+    assert(UI.craftingFrame.shown and UI.craftingButton.shown and UI.memberMessage.shown and UI.memberRank.shown,
+        "Crafting must remain available to lower guild ranks")
+    UI:ShowCopy("Restricted report", "data")
+    assert(not UI.copyFrame.shown, "Members must not reopen a leader copy window")
     UI:SetTab("prep")
     assert(UI.activeTab == "build", "Members must not switch to leader tools")
+    local oldGuild = IsInGuild
+    IsInGuild = function() return false end
+    UI:Refresh()
+    assert(not UI.craftingButton.shown and not UI.craftingFrame.shown and not UI.memberRank.shown,
+        "Leaving the guild must also hide the crafting directory")
+    IsInGuild = oldGuild
+    UI:Refresh()
+    assert(UI.craftingButton.shown)
+    -- Restore the lazy dialog state for later tests.
+    UI.copyFrame, UI.overviewFrame, UI.lootFrame, UI.upgradeImport, UI.craftingFrame = nil, nil, nil, nil, nil
 end
 
 function RunUpgradeUIChecks()
@@ -169,6 +207,8 @@ function RunUpgradeUIChecks()
         RequestLoadItemDataByID = function() iconRequests = iconRequests + 1 end }
     UI:Refresh()
     UI:SetTab("wishlist")
+    assert(UI.profilePanel.shown and UI.tabButtons.wishlist.shown and UI.tabPanels.wishlist.shown,
+        "Leader controls must return when access is restored")
     assert(UI.upgradeRows[1].shown and UI.upgradeRows[100].shown and #UI.upgradeRows == 100)
     assert(UI.upgradeRows[1].source.text:find("Convert to tier", 1, true))
     assert(UI.upgradeRows[1].source.text == "Test boss • Normal • Convert to tier")
