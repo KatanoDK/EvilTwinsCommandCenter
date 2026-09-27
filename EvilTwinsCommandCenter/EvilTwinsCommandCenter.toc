@@ -10,6 +10,7 @@ Core.lua
 SimC.lua
 Permissions.lua
 Protocol.lua
+Upgrades.lua
 Comm.lua
 Inventory.lua
 Crafting.lua
@@ -20,3 +21,4 @@ Loot.lua
 UI.lua
 CraftingUI.lua
 LootUI.lua
+UpgradesUI.lua

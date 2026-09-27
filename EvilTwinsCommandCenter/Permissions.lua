@@ -50,5 +50,6 @@ function ET:EnforceGuildAccess()
     for key in pairs(self.db.inventory) do
         if key ~= self.key then self.db.inventory[key] = nil end
     end
+    self.db.upgradeReports = {}
     if self.UI then self.UI:Refresh() end
 end

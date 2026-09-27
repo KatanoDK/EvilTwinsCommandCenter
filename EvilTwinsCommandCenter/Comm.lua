@@ -67,10 +67,11 @@ end
 
 function Comm:Pump()
     self:FillCraftingQueue()
+    self:FillUpgradesQueue()
     if #self.queue == 0 then return end
     if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
     local entry = self.queue[1]
-    if entry.channel == "WHISPER" and entry.message:match("^E|[SPIC]|") then
+    if entry.channel == "WHISPER" and entry.message:match("^E|[SPICD]|") then
         local rankIndex = ET:GetGuildRankIndex(entry.target)
         if rankIndex == nil then
             if not entry.rosterWaitUntil then
@@ -100,6 +101,47 @@ function Comm:Publish(snapshot, target)
         ET:Print("Could not send the profile to that leader right now.")
     end
     return sent
+end
+
+function Comm:PublishUpgrades(report, target)
+    if not IsInGuild() or not ET:CanUseLeaderTools() then return false end
+    -- Persisted reports can be large. Schedule each recipient so bursts do not fill the message queue.
+    if target then return self:QueueToLeaders("D", report.payload, target) end
+    self.upgradeJobs = self.upgradeJobs or {}
+    local sent = false
+    for index = 1, GetNumGuildMembers() do
+        local name, _, rank, _, _, _, _, _, online = GetGuildRosterInfo(index)
+        local fullName = name and (name:find("-", 1, true) and name or name .. "-" .. GetNormalizedRealmName())
+        if online and rank and rank <= ET.leaderRankCutoff and normalize(fullName) ~= normalize(ET.key) then
+            if #self.upgradeJobs >= 1000 then break end
+            self.upgradeJobs[#self.upgradeJobs + 1] = { report = report, target = name }
+            sent = true
+        end
+    end
+    return sent
+end
+
+function Comm:SyncUpgrades(target)
+    if not ET:CanUseLeaderTools() or not ET:CanSenderUseLeaderTools(target) then return end
+    self.upgradeJobs = self.upgradeJobs or {}
+    self.upgradeSyncTimes = self.upgradeSyncTimes or {}
+    if self.upgradeSyncTimes[target] and time() - self.upgradeSyncTimes[target] < 60 then return end
+    self.upgradeSyncTimes[target] = time()
+    for _, report in pairs(ET.db.upgradeReports or {}) do
+        if ET.Upgrades:FindOwner(report) then
+            self.upgradeJobs[#self.upgradeJobs + 1] = { report = report, target = target }
+            if #self.upgradeJobs >= 1000 then break end
+        end
+    end
+end
+
+function Comm:FillUpgradesQueue()
+    local jobs = self.upgradeJobs
+    if not jobs or #jobs == 0 or #self.queue > 200 then return end
+    local job = jobs[1]
+    if not ET:CanUseLeaderTools() or not ET:CanSenderUseLeaderTools(job.target) or not ET.Upgrades:FindOwner(job.report) then
+        table.remove(jobs, 1)
+    elseif self:PublishUpgrades(job.report, job.target) then table.remove(jobs, 1) end
 end
 
 function Comm:PublishSimC(target)
@@ -229,10 +271,11 @@ function Comm:ReplyWithCurrentGear(sender)
 end
 
 function Comm:ReceiveTransfer(sender, channel, message)
-    local kind, id, indexText, totalText, chunk = message:match("^E|([SPIC])|([^|]+)|(%d+)|(%d+)|(.*)$")
+    local kind, id, indexText, totalText, chunk = message:match("^E|([SPICD])|([^|]+)|(%d+)|(%d+)|(.*)$")
     if not kind then return end
     if kind ~= "C" and not ET:CanUseLeaderTools() then return end
     if not self:IsGuildSender(sender) then return end
+    if kind == "D" and (channel ~= "WHISPER" or not ET:CanSenderUseLeaderTools(sender)) then return end
     local index, total = tonumber(indexText), tonumber(totalText)
     if not index or not total or total < 1 or total > MAX_PARTS or index < 1 or index > total then return end
     if #chunk > CHUNK_SIZE then return end
@@ -262,7 +305,9 @@ function Comm:ReceiveTransfer(sender, channel, message)
     if #encoded > 120000 then return end
     local data = ET.Protocol:FromBase64(encoded)
     if not data then return end
-    if kind == "C" then
+    if kind == "D" then
+        ET.Upgrades:Receive(sender, data)
+    elseif kind == "C" then
         ET.Crafting:ReceivePage(sender, data)
     elseif kind == "S" then
         local snapshot = ET.Protocol:DecodeSnapshot(data)
@@ -312,6 +357,7 @@ function Comm:OnMessage(prefix, message, channel, sender)
                 self:Publish(ET:CaptureSelf(), sender)
                 self:PublishSimC(sender)
                 self:PublishBags(sender)
+                if ET:CanUseLeaderTools() then self:SyncUpgrades(sender) end
             end
         end)
     elseif channel == "GUILD" and message:sub(1, 2) == "Q|" then

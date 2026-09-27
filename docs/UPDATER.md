@@ -1,27 +1,34 @@
 # Evil Twins Windows updater
 
-The addon stays at version `0.1.0` while it is being tested. Git commit IDs identify individual builds, so the updater detects new code without changing the addon version. The repository and downloadable builds are public. No GitHub login or embedded credential is used.
+Addon and updater branding stay at **0.1.0** during testing. Git commits identify addon builds; installed app packages use increasing `0.1.0-dev.N` identifiers so self-updates can recognize newer code. Downloads are public and require no GitHub login.
 
-## Install the updater
+## Install once
 
-1. Open [Releases](https://github.com/KatanoDK/EvilTwinsCommandCenter/releases) and select the newest development build.
-2. Download `EvilTwinsUpdater-win-x64.zip`, extract it, and run `EvilTwinsUpdater.exe`. It includes its own .NET runtime and targets Windows x64.
-3. Click **Choose folder** and select WoW's `_retail_` folder containing `Wow.exe`.
-4. Click **Check / update now**. The button checks immediately and installs a new build if one is available, including while WoW is open. Type `/reload` in WoW afterward to load the updated addon.
-5. Leave automatic checks enabled for updates every 15 minutes while the app is running. Minimize it to keep it in the system tray. Closing the app stops checks; it does not register a Windows startup task.
+1. Exit your old portable updater using its system tray menu.
+2. Download and run [EvilTwinsUpdater-Setup.exe](https://github.com/KatanoDK/EvilTwinsCommandCenter/releases/download/updater/EvilTwinsUpdater-Setup.exe).
+3. Setup installs for your Windows user, creates Desktop and Start menu shortcuts, and adds a Windows uninstall entry. It includes its own .NET runtime and targets Windows x64.
+4. Your existing folder and automatic-check settings are retained. If needed, click **Choose folder** and select WoW's `_retail_` folder containing `Wow.exe`.
+5. Click **Check / update now** to check immediately. Leave automatic checks enabled for checks every 15 minutes while the app is open or minimized to its tray icon. Closing the app stops checks; no Windows startup task is registered.
 
-The updater always uses this project's public repository; there is no repository field to configure. Existing folder and automatic-check settings are preserved when replacing the updater.
+The installer is unsigned, so Windows can still display **Windows protected your PC**. Installation and self-updating do not solve SmartScreen reputation by themselves; trusted code signing is a separate future step.
 
-The executable is not code-signed. Windows may ask you to confirm its publisher when launching it. The app itself does not update automatically; exit the old updater from its tray menu and download a newer updater from Releases when needed.
+## App updates
 
-## Installation and recovery
+**Check / update now** checks both the addon and installed application. App checks also work before choosing a Retail folder, and an addon download failure does not prevent the app check. When newer app code is available, click **Update app & restart**. It downloads and verifies the package, saves settings, replaces the application, and restarts it. Future app updates do not require downloading another ZIP or installer. The initial portable copy needs the one-time Setup installation before this works.
 
+App packages use [Velopack](https://docs.velopack.io/getting-started/wpf), pinned to version 1.2.158. Application updates use the fixed public `updater` release's `releases.win.json` feed. Complete packages are uploaded before publishing their feed. Addon-only changes retain the existing installer and app build; the publisher compares a normalized hash of application source and packaging inputs. A failed check leaves the current app available for a manual retry. Packages are checked before staging; newer installed app versions are not downgraded.
+
+## Addon updates and recovery
+
+- Addon updates, **Install ZIP**, and **Restore previous build** work while WoW is open. The game continues using loaded code until `/reload`. The updater reminds you to reload; it does not trigger the reload itself.
 - Only `Interface/AddOns/EvilTwinsCommandCenter` is replaced. Other addons and the `WTF` folder containing saved data are preserved.
-- Updates, local ZIP installs, and restores work while WoW is running. The running game continues using its loaded code until you type `/reload`. The updater shows a reload reminder and a tray notification after installing while WoW is open; it does not trigger a reload itself.
-- The downloaded archive must match GitHub's SHA-256 asset digest and its published commit. Unexpected paths, oversized files, inconsistent versions, and incomplete packages are rejected before replacement.
-- One previous installation is kept in `Interface/AddOns/.EvilTwinsCommandCenter-backup`. **Restore previous build** swaps it back and disables automatic updates so the restored build stays installed.
-- **Install ZIP** accepts a clean build produced by `scripts/package_addon.py`, including a ZIP shared directly by a guildmate. It works without a release feed. Local ZIPs use archive validation but have no independently published checksum to verify against.
-- Settings are stored in `%LOCALAPPDATA%/EvilTwinsUpdater/settings.json`. Linked install paths are not supported; choose the physical Retail folder.
+- Downloaded addon archives must match GitHub's SHA-256 asset digest and published commit. Unexpected paths, oversized files, inconsistent versions, and incomplete packages are rejected before replacement.
+- One previous addon installation is kept in `Interface/AddOns/.EvilTwinsCommandCenter-backup`. **Restore previous build** swaps it back and disables automatic checks so it stays installed.
+- **Install ZIP** accepts clean addon builds produced by `scripts/package_addon.py`. Local ZIPs have archive validation but no independently published checksum.
+- Settings remain in `%LOCALAPPDATA%/EvilTwinsUpdater/settings.json`. Choose the physical Retail folder; linked install paths are unsupported.
+- Uninstalling the Windows app does not remove the WoW addon or its saved guild data.
+
+The app's **Droptimizer** tab imports completed reports into the addon; see [Droptimizer instructions](DROPTIMIZER.md).
 
 ## Build and test
 
@@ -29,9 +36,13 @@ With the .NET 10 SDK:
 
 ```powershell
 dotnet run --project updater/EvilTwinsUpdater.Tests/EvilTwinsUpdater.Tests.csproj -c Release -- .test-work/install-tests
-dotnet publish updater/EvilTwinsUpdater/EvilTwinsUpdater.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=embedded -o dist/updater
+dotnet publish updater/EvilTwinsUpdater/EvilTwinsUpdater.csproj -c Release -r win-x64 --self-contained true -p:DebugType=embedded -o dist/updater
+dotnet tool install vpk --version 1.2.158 --tool-path .test-work/tools
+.test-work/tools/vpk.exe pack --packId EvilTwinsUpdater --packVersion 0.1.0-dev.1 --packDir dist/updater --runtime win-x64 --mainExe EvilTwinsUpdater.exe --packTitle "Evil Twins Updater" --noPortable --delta None --outputDir dist/app
 ```
 
-The tests use generated fake Retail folders under the selected test workspace. They cover updates, rollback, locked-file failures and retry, preservation of other addons and saved data, archive path validation, commit checks, public release selection, and download checksums. They never install into a real WoW folder. Actual in-game reload behavior still needs a guild test.
+Velopack produces `EvilTwinsUpdater-win-Setup.exe`; the release publisher names the download `EvilTwinsUpdater-Setup.exe`.
 
-`.github/workflows/build-release.yml` runs the Lua and updater tests on each push to `master`, packages the addon, builds the Windows updater, and publishes a development release tagged `build-<full commit SHA>`. Releases are marked prerelease because the addon still needs in-game testing. The app reads these build releases directly rather than GitHub's latest stable release endpoint. All downloads are publicly accessible; see [GitHub's asset API](https://docs.github.com/en/rest/releases/assets).
+Tests use fake Retail folders and Velopack test installation directories. They cover addon installs and rollback, locked-file failures, preservation of other addons and saved data, archive and commit validation, public feeds, checksums, app version ordering, staged downloads, and corrupt app packages. They do not install on the real PC, exercise an actual installed app restart, or replace in-game testing.
+
+`.github/workflows/build-release.yml` runs Lua and .NET checks on every push to `master`, publishes changed app source with `scripts/publish_updater.ps1`, and publishes the addon separately as `build-<commit SHA>`. Both remain development releases. The app reads addon build releases rather than GitHub's latest stable release endpoint.

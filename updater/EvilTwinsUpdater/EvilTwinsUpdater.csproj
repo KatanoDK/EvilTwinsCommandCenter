@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
     <AssemblyName>EvilTwinsUpdater</AssemblyName>
     <Version>0.1.0</Version>
+    <Product>Evil Twins Updater</Product>
+    <Company>Evil Twins</Company>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../EvilTwinsUpdater.Core/EvilTwinsUpdater.Core.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Velopack" Version="1.2.158" /></ItemGroup>
 </Project>

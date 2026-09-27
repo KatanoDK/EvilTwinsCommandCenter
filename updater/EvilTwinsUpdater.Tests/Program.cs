@@ -5,6 +5,16 @@ using System.Text;
 using System.Text.Json;
 using EvilTwinsUpdater.Core;
 
+if (args.Length is 2 or 3 && args[0] == "--verify-report")
+{
+    using var reports = new DroptimizerClient();
+    var report = await reports.FetchAsync(args[1]);
+    if (args.Length == 3) File.WriteAllText(args[2], report.ImportCode());
+    Console.WriteLine($"Verified live Droptimizer: {report.Items.Count} positive upgrades; import size {report.ImportCode().Length} characters.");
+    foreach (var item in report.Items) Console.WriteLine($"Drop {item.DropId}, simulated {item.SimulatedId}, ilvl {item.ItemLevel}, +{item.Percent:F4}%.");
+    return;
+}
+
 var testRoot = Path.Combine(Path.GetFullPath(args.Length > 0 ? args[0] : ".test-work"), Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(testRoot);
 var retail = Path.Combine(testRoot, "_retail_");
@@ -43,6 +53,8 @@ void Reject(Action action, string message)
 }
 try
 {
+    await DropTests.Run(testRoot);
+    await AppUpdateTests.Run(testRoot);
     var first = Zip("first.zip", firstCommit);
     var second = Zip("second.zip", secondCommit);
     AddonInstaller.Install(retail, first, firstCommit);

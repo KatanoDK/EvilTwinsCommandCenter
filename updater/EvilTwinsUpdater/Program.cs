@@ -5,13 +5,15 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        if (args.Length == 2 && args[0] == "--preview")
+        Velopack.VelopackApp.Build().Run();
+        if (args.Length == 2 && (args[0] == "--preview" || args[0] == "--preview-reports"))
         {
             ApplicationConfiguration.Initialize();
             using var form = new MainForm(preview: true);
             form.StartPosition = FormStartPosition.Manual;
             form.Location = new Point(-32000, -32000);
             form.ShowInTaskbar = false;
+            if (args[0] == "--preview-reports") form.Controls.OfType<TabControl>().Single().SelectedIndex = 1;
             form.Show();
             Application.DoEvents();
             using var bitmap = new Bitmap(form.Width, form.Height);

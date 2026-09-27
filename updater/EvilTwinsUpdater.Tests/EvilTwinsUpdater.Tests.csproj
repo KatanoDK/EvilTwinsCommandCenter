@@ -6,4 +6,5 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../EvilTwinsUpdater.Core/EvilTwinsUpdater.Core.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Velopack" Version="1.2.158" /></ItemGroup>
 </Project>

@@ -29,32 +29,33 @@ jobs:
         run: |
           python -m pip install lupa==2.6
           python tests/test_crafting.py
+          python tests/test_app_source_hash.py
       - name: Test updater installation and downloads
         run: dotnet run --project updater/EvilTwinsUpdater.Tests/EvilTwinsUpdater.Tests.csproj -c Release -- .test-work/install-tests
       - name: Package addon
         run: |
           python scripts/package_addon.py
           Copy-Item -LiteralPath dist/EvilTwinsCommandCenter-0.1.0.zip -Destination dist/EvilTwinsCommandCenter.zip
-      - name: Publish portable Windows updater
-        run: |
-          dotnet publish updater/EvilTwinsUpdater/EvilTwinsUpdater.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=embedded -o dist/updater
-          Compress-Archive -LiteralPath dist/updater/EvilTwinsUpdater.exe -DestinationPath dist/EvilTwinsUpdater-win-x64.zip
+      - name: Publish installed Windows updater when app source changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/publish_updater.ps1
       - name: Release this build
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "build-$env:GITHUB_SHA"
           @'
-          Development build â€” addon version 0.1.0. In-game testing is still required.
+          Development build — addon version 0.1.0. In-game testing is still required.
 
-          Download EvilTwinsUpdater-win-x64.zip, extract it, and run EvilTwinsUpdater.exe. Exit an older updater from its tray menu before replacing it. Choose your WoW _retail_ folder once. Updates can install while WoW is open; type /reload in-game afterward. Keep the updater open or minimized for automatic checks. No GitHub login or repository setup is needed.
+          Install the updater once using [EvilTwinsUpdater-Setup.exe](https://github.com/KatanoDK/EvilTwinsCommandCenter/releases/download/updater/EvilTwinsUpdater-Setup.exe). Exit your old portable updater before installing. The app creates shortcuts and can update itself with Update app & restart. Choose your WoW _retail_ folder once. Addon updates can install while WoW is open; type /reload afterward. Keep the updater open or minimized for automatic checks. No GitHub login is needed.
 
           For manual installation, extract EvilTwinsCommandCenter.zip into Retail's Interface/AddOns folder.
           '@ | Set-Content -LiteralPath dist/release-notes.md -Encoding utf8
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag dist/EvilTwinsCommandCenter.zip dist/EvilTwinsUpdater-win-x64.zip --repo $env:GITHUB_REPOSITORY --clobber
+            gh release upload $tag dist/EvilTwinsCommandCenter.zip --repo $env:GITHUB_REPOSITORY --clobber
           } else {
-            gh release create $tag dist/EvilTwinsCommandCenter.zip dist/EvilTwinsUpdater-win-x64.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Development build $($env:GITHUB_SHA.Substring(0,8))" --prerelease --notes-file dist/release-notes.md
+            gh release create $tag dist/EvilTwinsCommandCenter.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Development build $($env:GITHUB_SHA.Substring(0,8))" --prerelease --notes-file dist/release-notes.md
           }
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

@@ -403,7 +403,7 @@ function UI:Create()
 
     self.tabPanels, self.tabButtons = {}, {}
     self.activeTab = "prep"
-    local tabs = { { "prep", "Raid prep" }, { "build", "Build & SimC" }, { "wishlist", "Wishlist" } }
+    local tabs = { { "prep", "Raid prep" }, { "build", "Build & SimC" }, { "wishlist", "Wishlist & upgrades" } }
     for index, entry in ipairs(tabs) do
         local key = entry[1]
         local tab = navigationTab(frame, entry[2], function() UI:SetTab(key) end)
@@ -512,6 +512,7 @@ function UI:Create()
     self.wishPanel = wishPanel
     local wishHeading = label(wishPanel, "GEAR WISHLIST", "GameFontNormal")
     wishHeading:SetPoint("TOPLEFT", 16, -14)
+    self.wishHeading = wishHeading
     self.browseLootButton = button(wishPanel, "Browse boss / dungeon loot", 225, 25, function() UI:ShowLootPicker() end)
     self.browseLootButton:SetPoint("TOPRIGHT", -16, -8)
     local emptyWish = label(wishPanel, "No items added yet.", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
@@ -575,6 +576,8 @@ function UI:Create()
         row.remove:SetPoint("RIGHT", 0, 0)
         self.wishRows[index] = row
     end
+
+    if self.CreateUpgradesPanel then self:CreateUpgradesPanel() end
 
     local footer = label(frame, "Gear and carried bags sync automatically while the addon is installed.", "GameFontHighlightSmall")
     footer:SetPoint("BOTTOMLEFT", 23, 20)
@@ -795,9 +798,16 @@ function UI:RefreshDetail()
     self.addButton:SetShown(isSelf)
     self.inputHint:SetShown(isSelf)
     self.noteHint:SetShown(isSelf)
+    local offset = self.RefreshUpgrades and self:RefreshUpgrades(snapshot) or 0
+    self.wishHeading:ClearAllPoints()
+    self.wishHeading:SetPoint("TOPLEFT", 16, -offset - 14)
+    self.browseLootButton:ClearAllPoints()
+    self.browseLootButton:SetPoint("TOPRIGHT", -16, -offset - 8)
+    self.itemInput:ClearAllPoints()
+    self.itemInput:SetPoint("TOPLEFT", 24, -offset - 61)
     local wishlist = snapshot.wishlist or {}
     self.emptyWish:ClearAllPoints()
-    self.emptyWish:SetPoint("TOPLEFT", 16, -(isSelf and 98 or 46))
+    self.emptyWish:SetPoint("TOPLEFT", 16, -offset - (isSelf and 98 or 46))
     self.emptyWish:SetShown(#wishlist == 0)
     for index, row in ipairs(self.wishRows) do
         local wish = wishlist[index]
@@ -808,13 +818,13 @@ function UI:RefreshDetail()
             row.note:SetText(wish.note or "")
             row.remove:SetShown(isSelf)
             row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", 16, -(isSelf and 98 or 46) - (index - 1) * 30)
+            row:SetPoint("TOPLEFT", 16, -offset - (isSelf and 98 or 46) - (index - 1) * 30)
             row:Show()
         else
             row:Hide()
         end
     end
-    local wishHeight = (isSelf and 98 or 46) + math.max(1, #wishlist) * 30 + 16
+    local wishHeight = offset + (isSelf and 98 or 46) + math.max(1, #wishlist) * 30 + 16
     self.wishPanel:SetHeight(wishHeight)
     self:RefreshTabs()
 end
@@ -835,6 +845,7 @@ function UI:Refresh()
     if not isLeader then
         if self.overviewFrame then self.overviewFrame:Hide() end
         if self.lootFrame then self.lootFrame:Hide() end
+        if self.upgradeImport then self.upgradeImport:Hide() end
         if self.selected ~= ET.key and self.copyFrame then self.copyFrame:Hide() end
     end
     self:RefreshRoster()

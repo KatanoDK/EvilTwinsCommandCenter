@@ -26,12 +26,12 @@ lua.execute((root / "tests" / "crafting_spec.lua").read_text(encoding="utf-8"))
 lua.execute((root / "tests" / "simc_spec.lua").read_text(encoding="utf-8"))
 ui_lua = LuaRuntime(unpack_returned_tuples=True)
 ui_lua.execute((root / "tests" / "roster_spec.lua").read_text(encoding="utf-8"))
-for name in ("Consumables", "RaidPrep", "Roster", "UI"):
+for name in ("Consumables", "RaidPrep", "Roster", "UI", "Upgrades", "UpgradesUI"):
     source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
     ui_lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
     if name == "Roster":
         ui_lua.execute("RunRosterChecks()")
-ui_lua.execute("RunUIChecks()")
+ui_lua.execute("RunUIChecks(); RunUpgradeUIChecks()")
 ui_lua.execute((root / "tests" / "loot_spec.lua").read_text(encoding="utf-8"))
 for name in ("Loot", "CraftingUI", "LootUI"):
     source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
@@ -44,3 +44,9 @@ for name in ("Consumables", "RaidPrep"):
     prep_lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
 prep_lua.execute("RunPrepChecks()")
 print("All Lua files compile; crafting groups, loot wishlist, ranks, SimC, roster, tabs, and raid-prep checks passed.")
+
+upgrade_lua = LuaRuntime(unpack_returned_tuples=True)
+upgrade_lua.execute((root / "tests" / "upgrades_spec.lua").read_text(encoding="utf-8"))
+for name in ("Protocol", "SimC", "Upgrades", "Comm"):
+    upgrade_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8"))
+upgrade_lua.globals().RunUpgradeChecks((root / "tests" / "fixtures" / "droptimizer-code.txt").read_text(encoding="utf-8"))

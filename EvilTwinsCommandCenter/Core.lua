@@ -28,6 +28,7 @@ function ET:InitDB()
     local db = EvilTwinsCCDB
     if type(db.settings) ~= "table" then db.settings = {} end
     if type(db.characters) ~= "table" then db.characters = {} end
+    if type(db.upgradeReports) ~= "table" then db.upgradeReports = {} end
     if type(db.simcProfiles) ~= "table" then db.simcProfiles = {} end
     if type(db.inventory) ~= "table" then db.inventory = {} end
     if type(db.crafting) ~= "table" then db.crafting = {} end

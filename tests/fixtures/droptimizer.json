@@ -1,0 +1,1132 @@
+{
+  "timestamp": 1700000000,
+  "sim": {
+    "players": [
+      {
+        "talents": "TEST_TALENTS",
+        "collected_data": {
+          "dps": {
+            "mean": 178966.93246964863,
+            "mean_std_dev": 45.56286608301493
+          }
+        }
+      }
+    ],
+    "profilesets": {
+      "metric": "Damage per Second",
+      "results": [
+        {
+          "name": "1320/2871/raid-normal/271538/298/0/hands////268234",
+          "mean": 178942.7494255981,
+          "mean_error": 89.34280204708288
+        },
+        {
+          "name": "1320/2887/raid-normal/268261/298/7963/feet////",
+          "mean": 180034.22234508238,
+          "mean_error": 89.90333043602665
+        },
+        {
+          "name": "1320/2882/raid-normal/268249/298/7967/finger1////",
+          "mean": 178530.02033037707,
+          "mean_error": 89.14661363629965
+        },
+        {
+          "name": "1320/2871/raid-normal/271536/298/7935/legs////",
+          "mean": 177833.778276159,
+          "mean_error": 347.8039756312244
+        },
+        {
+          "name": "1320/2882/raid-normal/271540/298/7987/chest////",
+          "mean": 176507.75532287513,
+          "mean_error": 343.11556653132425
+        },
+        {
+          "name": "1320/2895/raid-normal/271540/298/7987/chest////",
+          "mean": 176587.0164634755,
+          "mean_error": 347.33273259006256
+        },
+        {
+          "name": "1320/2882/raid-normal/271535/298/8001/shoulder////268246",
+          "mean": 179830.5155969395,
+          "mean_error": 89.81272805884227
+        },
+        {
+          "name": "1320/2895/raid-normal/271536/298/7935/legs////",
+          "mean": 177921.00562458142,
+          "mean_error": 344.9893119198063
+        },
+        {
+          "name": "1320/2882/raid-normal/268246/298/8001/shoulder////",
+          "mean": 170411.38743548884,
+          "mean_error": 1374.812100477088
+        },
+        {
+          "name": "1320/2887/raid-normal/268251/298/0/neck////",
+          "mean": 176878.13112798985,
+          "mean_error": 347.9820862270618
+        },
+        {
+          "name": "1320/2894/raid-normal/270164/295/0/trinket2////",
+          "mean": 178904.04383834614,
+          "mean_error": 89.3832864032975
+        },
+        {
+          "name": "1320/2874/raid-normal/271538/295/0/hands////",
+          "mean": 178235.0705962178,
+          "mean_error": 88.84409043945021
+        },
+        {
+          "name": "1320/2874/raid-normal/268219/295/8017/head////",
+          "mean": 164909.2557054115,
+          "mean_error": 1487.828416875362
+        },
+        {
+          "name": "1320/-97/raid-normal/271537/292/8017/head////271438",
+          "mean": 170347.18816910137,
+          "mean_error": 1553.6918159021209
+        },
+        {
+          "name": "1320/2888/raid-normal/268240/292/0/wrist////",
+          "mean": 176854.78232415838,
+          "mean_error": 341.3985015233602
+        },
+        {
+          "name": "1320/2888/raid-normal/268203/292/8689/main_hand////",
+          "mean": 171691.0646129539,
+          "mean_error": 1556.8940834490472
+        },
+        {
+          "name": "1320/-97/raid-normal/271438/292/8017/head////",
+          "mean": 166466.88117893072,
+          "mean_error": 1352.5196185905652
+        },
+        {
+          "name": "1320/-97/raid-normal/271638/292/0/neck////",
+          "mean": 177577.17076135203,
+          "mean_error": 348.2246432997872
+        },
+        {
+          "name": "1320/2888/raid-normal/271540/292/7987/chest////268235",
+          "mean": 176412.99083943816,
+          "mean_error": 343.92368451615965
+        },
+        {
+          "name": "1320/2894/raid-normal/270164/295/0/trinket1////",
+          "mean": 177626.70448152398,
+          "mean_error": 348.10063356436916
+        },
+        {
+          "name": "1320/2895/raid-normal/271538/295/0/hands////",
+          "mean": 178130.75279687025,
+          "mean_error": 88.90580872155162
+        },
+        {
+          "name": "1320/-97/raid-normal/271436/292/0/waist////",
+          "mean": 178501.64738360496,
+          "mean_error": 89.13312510036218
+        },
+        {
+          "name": "1320/2894/raid-normal/268227/295/0/waist////",
+          "mean": 178544.66517356443,
+          "mean_error": 89.22526104557261
+        },
+        {
+          "name": "1320/2888/raid-normal/268203/292/8689/main_hand///swap_mh/",
+          "mean": 169954.75971146947,
+          "mean_error": 1416.915749443684
+        },
+        {
+          "name": "1320/2888/raid-normal/268203/292/8689/off_hand////",
+          "mean": 169287.3594721805,
+          "mean_error": 1632.070514234316
+        },
+        {
+          "name": "1320/2888/raid-normal/268248/292/0/back////",
+          "mean": 178234.09053756262,
+          "mean_error": 89.02121722100448
+        },
+        {
+          "name": "1320/2888/raid-normal/268235/292/7987/chest////",
+          "mean": 163952.2510246847,
+          "mean_error": 1504.614393496121
+        },
+        {
+          "name": "1320/2874/raid-normal/268250/295/0/neck////",
+          "mean": 178958.032289404,
+          "mean_error": 89.40246710840528
+        },
+        {
+          "name": "1320/2874/raid-normal/271537/295/8017/head////268219",
+          "mean": 175865.47944060582,
+          "mean_error": 343.6626208045252
+        },
+        {
+          "name": "1320/2883/raid-normal/268253/302/0/back////",
+          "mean": 178497.8392947529,
+          "mean_error": 89.1414949172546
+        },
+        {
+          "name": "1320/2883/raid-normal/268211/302/8689/main_hand///swap_mh/",
+          "mean": 173605.78344028787,
+          "mean_error": 1526.691238659645
+        },
+        {
+          "name": "1320/2883/raid-normal/270169/302/0/trinket2///swap_doubleonuse/",
+          "mean": 175928.99007461237,
+          "mean_error": 341.55835899493735
+        },
+        {
+          "name": "1320/2895/raid-normal/271092/302/8689/off_hand////",
+          "mean": 173873.9962725523,
+          "mean_error": 1681.4752243178384
+        },
+        {
+          "name": "1320/2883/raid-normal/270169/302/0/trinket2////",
+          "mean": 178238.25464573762,
+          "mean_error": 89.05219929394508
+        },
+        {
+          "name": "1320/2895/raid-normal/270168/302/0/trinket2////",
+          "mean": 176198.2147172641,
+          "mean_error": 341.149944903707
+        },
+        {
+          "name": "1320/2895/raid-normal/270168/302/0/trinket1////",
+          "mean": 175288.9442470126,
+          "mean_error": 340.39641289669885
+        },
+        {
+          "name": "1320/2883/raid-normal/268256/302/0/waist////",
+          "mean": 178690.88427264162,
+          "mean_error": 89.2278829021991
+        },
+        {
+          "name": "1320/2895/raid-normal/268265/302/0/neck////",
+          "mean": 180192.8008228515,
+          "mean_error": 89.99541451670807
+        },
+        {
+          "name": "1320/2882/raid-normal/268249/298/7967/finger2////",
+          "mean": 178656.04843914823,
+          "mean_error": 89.23321483809238
+        },
+        {
+          "name": "1320/2871/raid-normal/268252/298/7967/finger1////",
+          "mean": 178821.8228295435,
+          "mean_error": 89.32569655117283
+        },
+        {
+          "name": "1320/2871/raid-normal/268252/298/7967/finger2////",
+          "mean": 177086.29494738657,
+          "mean_error": 343.426553593518
+        },
+        {
+          "name": "1320/2882/raid-normal/270161/298/0/trinket2////",
+          "mean": 176278.42171026804,
+          "mean_error": 343.9274012317059
+        },
+        {
+          "name": "1320/2883/raid-normal/270169/302/0/trinket1////",
+          "mean": 173100.33003621502,
+          "mean_error": 1677.960620957731
+        },
+        {
+          "name": "1320/2871/raid-normal/268201/298/8689/main_hand////",
+          "mean": 173320.10627882922,
+          "mean_error": 335.6403805487902
+        },
+        {
+          "name": "1320/2895/raid-normal/271537/302/8017/head////271875",
+          "mean": 177232.1143036,
+          "mean_error": 348.5861338652804
+        },
+        {
+          "name": "1320/2895/raid-normal/271092/302/8689/main_hand////",
+          "mean": 177079.69307159164,
+          "mean_error": 351.3187101444852
+        },
+        {
+          "name": "1320/2883/raid-normal/268211/302/8689/off_hand////",
+          "mean": 172834.78647712118,
+          "mean_error": 1681.1657416900412
+        },
+        {
+          "name": "1320/2882/raid-normal/270161/298/0/trinket1////",
+          "mean": 174896.8940250302,
+          "mean_error": 339.9641279712588
+        },
+        {
+          "name": "1320/2895/raid-normal/271875/302/8017/head////",
+          "mean": 165020.65929832374,
+          "mean_error": 1534.5971456098716
+        },
+        {
+          "name": "1320/2883/raid-normal/268225/302/7935/legs////",
+          "mean": 167906.8410853485,
+          "mean_error": 1384.5697568572182
+        },
+        {
+          "name": "1320/2887/raid-normal/270170/298/0/trinket1////",
+          "mean": 175692.84171334395,
+          "mean_error": 340.6160284252263
+        },
+        {
+          "name": "1320/2895/raid-normal/271092/302/8689/main_hand///swap_mh/",
+          "mean": 172762.8708619018,
+          "mean_error": 1530.4286418302133
+        },
+        {
+          "name": "1320/2895/raid-normal/270168/302/0/trinket2///swap_doubleonuse/",
+          "mean": 174944.98763332536,
+          "mean_error": 344.79754999822813
+        },
+        {
+          "name": "1320/2887/raid-normal/270170/298/0/trinket2////",
+          "mean": 177098.95153844112,
+          "mean_error": 349.1622431888287
+        },
+        {
+          "name": "1320/2887/raid-normal/270170/298/0/trinket2///swap_doubleonuse/",
+          "mean": 175877.40197101663,
+          "mean_error": 341.8888696508434
+        },
+        {
+          "name": "1320/2883/raid-normal/268211/302/8689/main_hand////",
+          "mean": 174628.97739235847,
+          "mean_error": 338.2529615047691
+        },
+        {
+          "name": "1320/2871/raid-normal/268201/298/8689/off_hand////",
+          "mean": 169493.44979804914,
+          "mean_error": 1219.7352283403143
+        },
+        {
+          "name": "1320/2871/raid-normal/268201/298/8689/main_hand///swap_mh/",
+          "mean": 169947.7589915238,
+          "mean_error": 1201.6054491959892
+        }
+      ]
+    }
+  },
+  "simbot": {
+    "simType": "droptimizer",
+    "parentSimId": "FixtureReport123",
+    "fightStyle": "Patchwerk",
+    "fightLength": 300,
+    "enemyCount": 1,
+    "meta": {
+      "type": "droptimizer",
+      "title": "Fixture raid upgrades",
+      "rawFormData": {
+        "profile": {
+          "identity": {
+            "name": "Testtoon",
+            "realm": "test-realm",
+            "region": "us",
+            "specId": 1480
+          },
+          "equipped": {
+            "head": {
+              "id": 12345,
+              "enchant_id": 8001,
+              "bonus_id": "9/3",
+              "gem_id": "6/2"
+            },
+            "mainHand": {
+              "id": 54321,
+              "bonus_id": "5/8"
+            }
+          }
+        },
+        "droptimizer": {
+          "upgradeEquippedMode": "none",
+          "includeConversions": true
+        }
+      },
+      "itemLibrary": [
+        {
+          "id": 271438,
+          "name": "Temple Delver's Mystic Helm",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": -97,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": -97,
+            "name": "Trash Drop"
+          }
+        },
+        {
+          "id": 271537,
+          "name": "Abyssal Doomhound's Relentless Stare",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": -97,
+          "difficulty": "raid-normal",
+          "bonus_id": "13692/13698/4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": -97,
+            "name": "Trash Drop"
+          }
+        },
+        {
+          "id": 271638,
+          "name": "Bound Serpent's Jade Eye",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": -97,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/13750/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": -97,
+            "name": "Trash Drop"
+          }
+        },
+        {
+          "id": 271540,
+          "name": "Abyssal Doomhound's Coreguard",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": 2888,
+          "difficulty": "raid-normal",
+          "bonus_id": "13690/13698/4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2888,
+            "name": "Nek'zali the Soulcoiler"
+          }
+        },
+        {
+          "id": 271436,
+          "name": "Slitherscale Girdle",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": -97,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": -97,
+            "name": "Trash Drop"
+          }
+        },
+        {
+          "id": 268240,
+          "name": "Restless Spirit Shackles",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": 2888,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2888,
+            "name": "Nek'zali the Soulcoiler"
+          }
+        },
+        {
+          "id": 268203,
+          "name": "Hexing Spiritrender",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": 2888,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2888,
+            "name": "Nek'zali the Soulcoiler"
+          }
+        },
+        {
+          "id": 268248,
+          "name": "Amani Summoning Shawl",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": 2888,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2888,
+            "name": "Nek'zali the Soulcoiler"
+          }
+        },
+        {
+          "id": 268235,
+          "name": "Vestment of the Awakening",
+          "itemLevel": 292,
+          "instanceId": 1320,
+          "encounterId": 2888,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12833",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2888,
+            "name": "Nek'zali the Soulcoiler"
+          }
+        },
+        {
+          "id": 268219,
+          "name": "Shadow Hunter's Warmask",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2874,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2874,
+            "name": "Entombed Sentinels"
+          }
+        },
+        {
+          "id": 271537,
+          "name": "Abyssal Doomhound's Relentless Stare",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2874,
+          "difficulty": "raid-normal",
+          "bonus_id": "13692/13698/4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2874,
+            "name": "Entombed Sentinels"
+          }
+        },
+        {
+          "id": 268250,
+          "name": "Sentinel's Vitriolic Chain",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2874,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/13750/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2874,
+            "name": "Entombed Sentinels"
+          }
+        },
+        {
+          "id": 271535,
+          "name": "Abyssal Doomhound's Jaws",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13694/13697/4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271535,
+          "name": "Abyssal Doomhound's Jaws",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2894,
+          "difficulty": "raid-normal",
+          "bonus_id": "13694/13697/4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2894,
+            "name": "The Lost Explorers"
+          }
+        },
+        {
+          "id": 268227,
+          "name": "Unpossessed Skullsash",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2894,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2894,
+            "name": "The Lost Explorers"
+          }
+        },
+        {
+          "id": 271538,
+          "name": "Abyssal Doomhound's Studded Gauntlets",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13691/13697/4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271538,
+          "name": "Abyssal Doomhound's Studded Gauntlets",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2874,
+          "difficulty": "raid-normal",
+          "bonus_id": "13691/13697/4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2874,
+            "name": "Entombed Sentinels"
+          }
+        },
+        {
+          "id": 270164,
+          "name": "Gebbo's Bottomless Bag",
+          "itemLevel": 295,
+          "instanceId": 1320,
+          "encounterId": 2894,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12834",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2894,
+            "name": "The Lost Explorers"
+          }
+        },
+        {
+          "id": 271537,
+          "name": "Abyssal Doomhound's Relentless Stare",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13692/13698/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271537,
+          "name": "Abyssal Doomhound's Relentless Stare",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2887,
+          "difficulty": "raid-normal",
+          "bonus_id": "13692/13698/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2887,
+            "name": "The Twin Fangs"
+          }
+        },
+        {
+          "id": 268251,
+          "name": "Amulet of the Twin Fangs",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2887,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/13750/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2887,
+            "name": "The Twin Fangs"
+          }
+        },
+        {
+          "id": 268246,
+          "name": "Frothing Venom Spaulders",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2882,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2882,
+            "name": "Vashnik the Malignant"
+          }
+        },
+        {
+          "id": 271535,
+          "name": "Abyssal Doomhound's Jaws",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2882,
+          "difficulty": "raid-normal",
+          "bonus_id": "13694/13697/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2882,
+            "name": "Vashnik the Malignant"
+          }
+        },
+        {
+          "id": 271540,
+          "name": "Abyssal Doomhound's Coreguard",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13690/13698/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271540,
+          "name": "Abyssal Doomhound's Coreguard",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2882,
+          "difficulty": "raid-normal",
+          "bonus_id": "13690/13698/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2882,
+            "name": "Vashnik the Malignant"
+          }
+        },
+        {
+          "id": 271536,
+          "name": "Abyssal Doomhound's Legwraps",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13693/13698/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271536,
+          "name": "Abyssal Doomhound's Legwraps",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2871,
+          "difficulty": "raid-normal",
+          "bonus_id": "13693/13698/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2871,
+            "name": "Sszorak"
+          }
+        },
+        {
+          "id": 268261,
+          "name": "Bespittled Slitherslippers",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2887,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2887,
+            "name": "The Twin Fangs"
+          }
+        },
+        {
+          "id": 268234,
+          "name": "Ruthless Slaughtergrips",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2871,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2871,
+            "name": "Sszorak"
+          }
+        },
+        {
+          "id": 271538,
+          "name": "Abyssal Doomhound's Studded Gauntlets",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2871,
+          "difficulty": "raid-normal",
+          "bonus_id": "13691/13697/4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2871,
+            "name": "Sszorak"
+          }
+        },
+        {
+          "id": 268249,
+          "name": "Vile Alchemist's Band",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2882,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/13750/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2882,
+            "name": "Vashnik the Malignant"
+          }
+        },
+        {
+          "id": 268252,
+          "name": "Apex Brute's Claw Ring",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2871,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/13750/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2871,
+            "name": "Sszorak"
+          }
+        },
+        {
+          "id": 270161,
+          "name": "Fang of Umbral Malignance",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2882,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2882,
+            "name": "Vashnik the Malignant"
+          }
+        },
+        {
+          "id": 270170,
+          "name": "Vexhul's Everflowing Gland",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2887,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2887,
+            "name": "The Twin Fangs"
+          }
+        },
+        {
+          "id": 268201,
+          "name": "Venomous Boneglaive",
+          "itemLevel": 298,
+          "instanceId": 1320,
+          "encounterId": 2871,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12835",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2871,
+            "name": "Sszorak"
+          }
+        },
+        {
+          "id": 271875,
+          "name": "Gaze of the Coiled Watcher",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13847/4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 271537,
+          "name": "Abyssal Doomhound's Relentless Stare",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13692/13698/13847/4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 268265,
+          "name": "Aqirbane Reliquary",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "13987/4822/4786/13750/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 268256,
+          "name": "Sash of the Forlorn Vessel",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2883,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2883,
+            "name": "The Coiled Altar"
+          }
+        },
+        {
+          "id": 268225,
+          "name": "Coiled Hex Legguards",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2883,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2883,
+            "name": "The Coiled Altar"
+          }
+        },
+        {
+          "id": 271536,
+          "name": "Abyssal Doomhound's Legwraps",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2883,
+          "difficulty": "raid-normal",
+          "bonus_id": "13693/13698/4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2883,
+            "name": "The Coiled Altar"
+          }
+        },
+        {
+          "id": 270168,
+          "name": "Font of Venomous Rage",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 270169,
+          "name": "Hex Lord's Dooming Idol",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2883,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2883,
+            "name": "The Coiled Altar"
+          }
+        },
+        {
+          "id": 268211,
+          "name": "Baleful Hexblade",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2883,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2883,
+            "name": "The Coiled Altar"
+          }
+        },
+        {
+          "id": 271092,
+          "name": "Jan'thrazet, the Soul Fang",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2895,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2895,
+            "name": "Ula'tek"
+          }
+        },
+        {
+          "id": 268253,
+          "name": "Silken Voodoo Drape",
+          "itemLevel": 302,
+          "instanceId": 1320,
+          "encounterId": 2883,
+          "difficulty": "raid-normal",
+          "bonus_id": "4822/4786/12836",
+          "instance": {
+            "id": 1320,
+            "name": "The Venomous Abyss"
+          },
+          "encounter": {
+            "id": 2883,
+            "name": "The Coiled Altar"
+          }
+        }
+      ]
+    }
+  }
+}

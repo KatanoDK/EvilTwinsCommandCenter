@@ -127,7 +127,8 @@ function RunUIChecks()
     UI.selected = ET.key
     UI:SetTab("wishlist")
     UI:RefreshDetail()
-    assert(UI.itemInput.shown and UI.noteHint.shown and UI.emptyWish.point[3] == -98)
+    assert(UI.itemInput.shown and UI.noteHint.shown and UI.emptyWish.point[3] == -184)
+    assert(UI.importUpgradeButton and #UI.upgradeRows == 100 and not UI.upgradeRows[1].shown, "Upgrade rows must stay bounded and clear when no report exists")
     assert(UI.tabPanels.wishlist.shown and not UI.tabPanels.prep.shown)
     UI.selected = "Alpha-Realm"
     UI:RefreshDetail()
@@ -144,4 +145,30 @@ function RunUIChecks()
     assert(not UI.profilePanel.shown and not UI.tabButtons.prep.shown)
     UI:SetTab("prep")
     assert(UI.activeTab == "build", "Members must not switch to leader tools")
+end
+
+function RunUpgradeUIChecks()
+    leader = true
+    local UI = ET.UI
+    UI.selected = ET.key
+    ET.db.characters[ET.key].specID = 1480
+    local report = { owner = ET.key, specID = 1480, id = "FixtureReport123", updated = 1,
+        title = "Fixture raid", fightStyle = "Patchwerk", duration = 300, enemies = 1,
+        assumptions = "Conversions included", talents = "", gear = {}, items = {} }
+    for index = 1, 100 do
+        report.items[index] = { dropID = 1000 + index, simulatedID = 2000 + index,
+            name = "Upgrade " .. index, itemLevel = 302, gain = 100, percent = 0.5,
+            boss = "Test boss", difficulty = "raid-normal", withinError = false }
+    end
+    ET.db.upgradeReports = { fixture = report }
+    UI:Refresh()
+    UI:SetTab("wishlist")
+    assert(UI.upgradeRows[1].shown and UI.upgradeRows[100].shown and #UI.upgradeRows == 100)
+    assert(UI.upgradeRows[1].source.text:find("Convert to tier", 1, true))
+    assert(UI.upgradeRows[1].gain.text:find("0.50%", 1, true) and UI.upgradeLinkButton.enabled)
+    assert(UI.wishHeading.point[3] < -4900 and UI.wishPanel:GetHeight() > 5000, "Manual wishlist must be laid out after upgrade rows")
+    UI.selected = "Alpha-Realm"; UI:RefreshDetail()
+    assert(not UI.upgradeRows[1].shown and not UI.upgradeLinkButton.enabled and not UI.upgradeSelector.shown, "Switching characters must clear the previous report")
+    ET.db.upgradeReports = {}; leader = false
+    UI:Refresh()
 end
