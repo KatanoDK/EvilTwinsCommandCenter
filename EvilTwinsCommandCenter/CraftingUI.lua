@@ -1,6 +1,15 @@
 local _, ET = ...
 local UI = ET.UI
 
+-- Base profession skill-line IDs, independent of expansion and localized names.
+local gathering = { [182] = true, [186] = true, [393] = true }
+local function hasCraftingProfession(professions)
+    for id in pairs(professions) do
+        if not gathering[tonumber(id)] then return true end
+    end
+    return false
+end
+
 local function text(parent, value, font)
     local widget = parent:CreateFontString(nil, "OVERLAY", font or "GameFontNormal")
     widget:SetJustifyH("LEFT")
@@ -110,6 +119,7 @@ function UI:RefreshCrafting(resetScroll)
     local keys = {}
     for key, entry in pairs(ET.db.crafting) do
         if type(entry) == "table" and type(entry.professions) == "table"
+            and hasCraftingProfession(entry.professions)
             and (key == ET.key or ET:GetGuildRankIndex(key) ~= nil) then
             keys[#keys + 1] = key
         end
@@ -152,19 +162,21 @@ function UI:RefreshCrafting(resetScroll)
     local byID = {}
     for _, key in ipairs(keys) do
         if not selected or key == selected then
-            for _, profession in pairs(ET.db.crafting[key].professions) do
-                for _, recipe in ipairs(profession.recipes) do
-                    if recipeMatches(recipe, profession.name, search) then
-                        local result = byID[recipe.id]
-                        if not result then
-                            result = { id = recipe.id, name = recipe.name,
-                                profession = profession.name, known = {}, missing = {}, scans = {} }
-                            byID[recipe.id] = result
-                            entries[#entries + 1] = result
+            for professionID, profession in pairs(ET.db.crafting[key].professions) do
+                if not gathering[tonumber(professionID)] then
+                    for _, recipe in ipairs(profession.recipes) do
+                        if recipeMatches(recipe, profession.name, search) then
+                            local result = byID[recipe.id]
+                            if not result then
+                                result = { id = recipe.id, name = recipe.name,
+                                    profession = profession.name, known = {}, missing = {}, scans = {} }
+                                byID[recipe.id] = result
+                                entries[#entries + 1] = result
+                            end
+                            local list = recipe.learned and result.known or result.missing
+                            list[#list + 1] = nameOf(key)
+                            result.scans[#result.scans + 1] = nameOf(key) .. ": " .. date("%Y-%m-%d %H:%M", profession.updated)
                         end
-                        local list = recipe.learned and result.known or result.missing
-                        list[#list + 1] = nameOf(key)
-                        result.scans[#result.scans + 1] = nameOf(key) .. ": " .. date("%Y-%m-%d %H:%M", profession.updated)
                     end
                 end
             end

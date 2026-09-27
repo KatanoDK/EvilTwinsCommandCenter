@@ -106,13 +106,19 @@ function RunDirectoryUIChecks()
     ET.db.crafting = { [ET.key] = { professions = {
         [164] = { name = "Blacksmithing", updated = 100, recipes = {} },
         [171] = { name = "Alchemy", updated = 100, recipes = { { id = 9999, name = "Potion", learned = true } } },
+        [182] = { name = "Herbalism", updated = 100, recipes = { { id = 8881, name = "Gather herb", learned = true } } },
+        [186] = { name = "Mining", updated = 100, recipes = { { id = 8882, name = "Gather ore", learned = true } } },
+        [393] = { name = "Skinning", updated = 100, recipes = { { id = 8883, name = "Gather hide", learned = true } } },
     } } }
+    ET.db.crafting["Gatherer-Realm"] = { professions = {
+        [186] = ET.db.crafting[ET.key].professions[186] } }
     for index = 1, 1000 do
         ET.db.crafting[ET.key].professions[164].recipes[index] = {
             id = index, name = string.format("Recipe %04d", index), learned = index < 1000 }
     end
     UI:ShowCrafting()
     assert(#UI.craftingDisplay == 2 and #UI.craftingRecipeRows == 2, "Professions start collapsed")
+    assert(not UI.craftingPersonRows[3], "Gathering-only characters must not appear as crafters")
     assert(UI.craftingDisplay[2].group.known == 999, "Unknown recipes are hidden by default")
     UI.craftingRecipeRows[2].scripts.OnClick(UI.craftingRecipeRows[2])
     assert(#UI.craftingDisplay == 1001 and #UI.craftingRecipeRows <= 13, "Large profession lists must reuse visible rows")
@@ -123,6 +129,11 @@ function RunDirectoryUIChecks()
     assert(#UI.craftingDisplay == 0, "Unlearned recipes require All scanned recipes")
     UI.craftingFilter.choices[2].pick("ALL")
     assert(#UI.craftingDisplay == 2 and UI.craftingDisplay[2].data.id == 1000)
+    for _, search in ipairs({ "Herbalism", "Mining", "Skinning", "Gather", "8882" }) do
+        UI.craftingSearch:SetText(search)
+        UI.craftingSearch.scripts.OnTextChanged()
+        assert(#UI.craftingDisplay == 0, "Gathering recipes must stay hidden in search and All scanned recipes")
+    end
     UI.craftingSearch:SetText("Potion")
     UI.craftingSearch.scripts.OnTextChanged()
     assert(#UI.craftingDisplay == 2 and UI.craftingDisplay[1].expanded, "Search opens matching professions")
