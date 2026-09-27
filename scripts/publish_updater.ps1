@@ -15,14 +15,15 @@ if ($previous.sourceHash -eq $sourceHash) {
     Write-Output 'Updater source unchanged; keeping the existing installer and app feed.'
     exit 0
 }
+# A distinct package ID keeps the install root separate from portable settings in LocalAppData/EvilTwinsUpdater.
 $appVersion = "0.1.0-dev.$env:GITHUB_RUN_NUMBER"
 dotnet publish updater/EvilTwinsUpdater/EvilTwinsUpdater.csproj -c Release -r win-x64 --self-contained true -p:DebugType=embedded -o dist/updater
 if ($LASTEXITCODE -ne 0) { throw 'App publish failed.' }
 dotnet tool install vpk --version 1.2.158 --tool-path .test-work/tools
 if ($LASTEXITCODE -ne 0) { throw 'Packaging tool installation failed.' }
-& .test-work/tools/vpk.exe pack --packId EvilTwinsUpdater --packVersion $appVersion --packDir dist/updater --mainExe EvilTwinsUpdater.exe --packTitle 'Evil Twins Updater' --packAuthors 'Evil Twins' --runtime win-x64 --noPortable --delta None --shortcuts Desktop,StartMenuRoot --outputDir dist/app
+& .test-work/tools/vpk.exe pack --packId EvilTwinsUpdaterApp --packVersion $appVersion --packDir dist/updater --mainExe EvilTwinsUpdater.exe --packTitle 'Evil Twins Updater' --packAuthors 'Evil Twins' --runtime win-x64 --noPortable --delta None --shortcuts Desktop,StartMenuRoot --outputDir dist/app
 if ($LASTEXITCODE -ne 0) { throw 'Installer packaging failed.' }
-Copy-Item -LiteralPath dist/app/EvilTwinsUpdater-win-Setup.exe -Destination dist/app/EvilTwinsUpdater-Setup.exe
+Copy-Item -LiteralPath dist/app/EvilTwinsUpdaterApp-win-Setup.exe -Destination dist/app/EvilTwinsUpdater-Setup.exe
 @{ sourceHash = $sourceHash; version = $appVersion; commit = $env:GITHUB_SHA } | ConvertTo-Json | Set-Content dist/app/app-build.json -Encoding utf8
 @'
 Evil Twins Updater 0.1.0 development builds.

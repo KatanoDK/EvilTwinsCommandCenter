@@ -6,7 +6,7 @@ Addon and updater branding stay at **0.1.0** during testing. Git commits identif
 
 1. Exit your old portable updater using its system tray menu.
 2. Download and run [EvilTwinsUpdater-Setup.exe](https://github.com/KatanoDK/EvilTwinsCommandCenter/releases/download/updater/EvilTwinsUpdater-Setup.exe).
-3. Setup installs for your Windows user, creates Desktop and Start menu shortcuts, and adds a Windows uninstall entry. It includes its own .NET runtime and targets Windows x64.
+3. Setup installs for your Windows user in `%LOCALAPPDATA%/EvilTwinsUpdaterApp`, creates Desktop and Start menu shortcuts, and adds a Windows uninstall entry. It includes its own .NET runtime and targets Windows x64.
 4. Your existing folder and automatic-check settings are retained. If needed, click **Choose folder** and select WoW's `_retail_` folder containing `Wow.exe`.
 5. Click **Check / update now** to check immediately. Leave automatic checks enabled for checks every 15 minutes while the app is open or minimized to its tray icon. Closing the app stops checks; no Windows startup task is registered.
 
@@ -38,10 +38,10 @@ With the .NET 10 SDK:
 dotnet run --project updater/EvilTwinsUpdater.Tests/EvilTwinsUpdater.Tests.csproj -c Release -- .test-work/install-tests
 dotnet publish updater/EvilTwinsUpdater/EvilTwinsUpdater.csproj -c Release -r win-x64 --self-contained true -p:DebugType=embedded -o dist/updater
 dotnet tool install vpk --version 1.2.158 --tool-path .test-work/tools
-.test-work/tools/vpk.exe pack --packId EvilTwinsUpdater --packVersion 0.1.0-dev.1 --packDir dist/updater --runtime win-x64 --mainExe EvilTwinsUpdater.exe --packTitle "Evil Twins Updater" --noPortable --delta None --outputDir dist/app
+.test-work/tools/vpk.exe pack --packId EvilTwinsUpdaterApp --packVersion 0.1.0-dev.1 --packDir dist/updater --runtime win-x64 --mainExe EvilTwinsUpdater.exe --packTitle "Evil Twins Updater" --noPortable --delta None --outputDir dist/app
 ```
 
-Velopack produces `EvilTwinsUpdater-win-Setup.exe`; the release publisher names the download `EvilTwinsUpdater-Setup.exe`.
+Velopack produces `EvilTwinsUpdaterApp-win-Setup.exe`; the release publisher names the download `EvilTwinsUpdater-Setup.exe`.
 
 Tests use fake Retail folders and Velopack test installation directories. They cover addon installs and rollback, locked-file failures, preservation of other addons and saved data, archive and commit validation, public feeds, checksums, app version ordering, staged downloads, and corrupt app packages. They do not install on the real PC, exercise an actual installed app restart, or replace in-game testing.
 
