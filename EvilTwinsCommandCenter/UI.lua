@@ -2,6 +2,23 @@ local _, ET = ...
 local UI = { rosterRows = {}, gearRows = {}, wishRows = {} }
 ET.UI = UI
 
+function ET:StyleWindow(frame)
+    -- The dialog background texture contains transparency; a solid texture keeps
+    -- text readable when multiple addon windows overlap.
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        edgeSize = 24,
+        insets = { left = 6, right = 6, top = 6, bottom = 6 },
+    })
+    frame:SetBackdropColor(0.035, 0.04, 0.055, 1)
+    frame:SetBackdropBorderColor(0.5, 0.45, 0.65, 1)
+    frame:SetAlpha(1)
+    frame:SetClampedToScreen(true)
+    frame:SetToplevel(true)
+    frame:HookScript("OnShow", function(self) self:Raise() end)
+end
+
 local function label(parent, text, size, color)
     local widget = parent:CreateFontString(nil, "OVERLAY", size or "GameFontNormal")
     widget:SetJustifyH("LEFT")
@@ -24,12 +41,7 @@ function UI:CreateCopyFrame()
     frame:SetSize(760, 520)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        edgeSize = 24,
-        insets = { left = 6, right = 6, top = 6, bottom = 6 },
-    })
+    ET:StyleWindow(frame)
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
@@ -77,12 +89,7 @@ function UI:CreatePrepFrame()
     frame:SetSize(850, 510)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        edgeSize = 24,
-        insets = { left = 6, right = 6, top = 6, bottom = 6 },
-    })
+    ET:StyleWindow(frame)
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
@@ -165,12 +172,7 @@ function UI:CreateOverviewFrame()
     frame:SetSize(900, 620)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        edgeSize = 24,
-        insets = { left = 6, right = 6, top = 6, bottom = 6 },
-    })
+    ET:StyleWindow(frame)
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
@@ -316,12 +318,7 @@ function UI:Create()
     frame:SetSize(990, 680)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("HIGH")
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        edgeSize = 24,
-        insets = { left = 6, right = 6, top = 6, bottom = 6 },
-    })
+    ET:StyleWindow(frame)
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
@@ -416,7 +413,7 @@ function UI:Create()
                 if not saved then ET:Print("This SimC profile is too large to cache or share.") end
             else ET:Print(err) end
         elseif ET.Comm:RequestSimC(UI.selected, snapshot.guid) then
-            ET:Print("Requested a SimC profile from " .. UI.selected .. ". They must be online with SimulationCraft installed.")
+            ET:Print("Requested a SimC profile from " .. UI.selected .. ". They must be online with Evil Twins Command Center enabled.")
         else
             ET:Print("That character is not currently available for requests.")
         end
@@ -477,7 +474,8 @@ function UI:Create()
     local wishHeading = label(detail, "GEAR WISHLIST", "GameFontNormal")
     wishHeading:SetPoint("TOPLEFT", 6, -463)
     local emptyWish = label(detail, "No items added yet.", "GameFontHighlightSmall")
-    emptyWish:SetPoint("TOPLEFT", 6, -496)
+    emptyWish:SetPoint("TOPLEFT", 14, -528)
+    emptyWish:SetWidth(580)
     self.emptyWish = emptyWish
 
     local itemInput = CreateFrame("EditBox", nil, detail, "InputBoxTemplate")
@@ -538,7 +536,7 @@ function UI:Create()
     footer:SetPoint("BOTTOMLEFT", 23, 20)
     self.footer = footer
     local memberMessage = label(frame,
-        "Gear and carried bags sync automatically to online leaders. SimC syncs if installed.",
+        "Gear, carried bags, and SimC profiles sync automatically to online leaders.",
         "GameFontHighlightSmall")
     memberMessage:SetPoint("TOPLEFT", 24, -64)
     local memberRank = label(frame, "Crafting directory is open to all guild ranks. Gear and raid prep are for ranks 0–5.", "GameFontHighlightSmall")
@@ -619,6 +617,8 @@ function UI:RefreshDetail()
     self.addButton:SetShown(isSelf)
     self.inputHint:SetShown(isSelf)
     local wishlist = snapshot.wishlist or {}
+    self.emptyWish:ClearAllPoints()
+    self.emptyWish:SetPoint("TOPLEFT", 14, -(isSelf and 528 or 496))
     self.emptyWish:SetShown(#wishlist == 0)
     for index, row in ipairs(self.wishRows) do
         local wish = wishlist[index]

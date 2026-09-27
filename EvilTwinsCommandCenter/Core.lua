@@ -166,22 +166,6 @@ function ET:RemoveWish(index)
     self:SchedulePublish()
 end
 
-function ET:GetSimCProfile()
-    local api = _G.SimulationcraftAPI
-    local simc = _G.Simulationcraft
-    if not api or type(api.GetSimcProfile) ~= "function" or not simc then
-        return nil, "Install the current SimulationCraft addon to share SimC profiles."
-    end
-    -- SimulationCraft currently groups bags and bank under one switch.
-    -- Keep bank data out of shared exports; bag items are shared separately.
-    local ok, profile, err = pcall(api.GetSimcProfile, simc, false, true, false, nil)
-    if not ok then return nil, "SimulationCraft could not produce a profile." end
-    if type(profile) ~= "string" or #profile == 0 then
-        return nil, type(err) == "string" and err or "SimulationCraft returned no profile."
-    end
-    return profile
-end
-
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", function(_, event, ...)
@@ -230,8 +214,7 @@ SlashCmdList.EVILTWINSCC = function(input)
             and bagItems and bagItems[1] and bagItems[1].link == bagSample[1].link
             and craftGUID == snapshot.guid and craftProfession == 171 and craftPage == 1
             and craftRecipes and craftRecipes[1] and craftRecipes[1].name == craftSample[1].name then
-            ET:Print("Snapshot, bags, crafting, and transfer encoding passed. SimulationCraft API: "
-                .. ((_G.SimulationcraftAPI and "available") or "not installed"))
+            ET:Print("Snapshot, bags, crafting, and transfer encoding passed. SimC export: " .. ET.SimC:Source())
         else
             ET:Print("Self-test failed. Please report this with your WoW version.")
         end

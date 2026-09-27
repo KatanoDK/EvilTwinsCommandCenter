@@ -19,8 +19,9 @@ function ET:GetGuildRankIndex(name) return name ~= "Stranger-Realm" and 8 or nil
 function ET:CanUseLeaderTools() return false end
 function ET:CanSenderUseLeaderTools() return false end
 """)
-for name in ("Protocol", "Crafting", "Comm"):
+for name in ("Protocol", "Crafting", "Comm", "SimC"):
     source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
     lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
 lua.execute((root / "tests" / "crafting_spec.lua").read_text(encoding="utf-8"))
-print("All Lua files compile; crafting protocol, scan, assembly, queue, and rank checks passed.")
+lua.execute((root / "tests" / "simc_spec.lua").read_text(encoding="utf-8"))
+print("All Lua files compile; crafting transfers, ranks, SimC compatibility, and native exports passed.")

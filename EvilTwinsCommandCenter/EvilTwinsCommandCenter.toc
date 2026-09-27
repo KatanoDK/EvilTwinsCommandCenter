@@ -7,6 +7,7 @@
 ## OptionalDeps: Simulationcraft
 
 Core.lua
+SimC.lua
 Permissions.lua
 Protocol.lua
 Comm.lua

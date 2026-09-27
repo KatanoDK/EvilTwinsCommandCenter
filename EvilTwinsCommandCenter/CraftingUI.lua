@@ -18,12 +18,7 @@ function UI:CreateCraftingFrame()
     frame:SetSize(900, 600)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        edgeSize = 24,
-        insets = { left = 6, right = 6, top = 6, bottom = 6 },
-    })
+    ET:StyleWindow(frame)
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
