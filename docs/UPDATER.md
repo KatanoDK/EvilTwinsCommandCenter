@@ -30,6 +30,8 @@ App packages use [Velopack](https://docs.velopack.io/getting-started/wpf), pinne
 
 The app's **Droptimizer** tab imports completed reports into the addon; see [Droptimizer instructions](DROPTIMIZER.md).
 
+The **Local simulator** tab runs basic CPU simulations using a separately downloaded SimulationCraft engine; see [setup and usage](LOCAL_SIMULATOR.md). It remembers the engine location, supports background/full-speed runs, displays DPS uncertainty and engine notes, and saves reports locally.
+
 ## Build and test
 
 With the .NET 10 SDK:

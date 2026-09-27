@@ -5,6 +5,18 @@ using System.Text;
 using System.Text.Json;
 using EvilTwinsUpdater.Core;
 
+if (args.Length > 0 && args[0] == "input.simc" && File.Exists(Path.Combine(AppContext.BaseDirectory, ".fake-simc")))
+{
+    await SimulationTests.FakeEngine(args);
+    return;
+}
+
+if (args.Length == 4 && args[0] == "--verify-local-sim")
+{
+    await SimulationTests.VerifyReal(args[1], args[2], args[3]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--verify-app-feed")
 {
     await AppUpdateTests.VerifyPublished(args[1]);
@@ -61,6 +73,7 @@ try
 {
     await DropTests.Run(testRoot);
     await AppUpdateTests.Run(testRoot);
+    await SimulationTests.Run(testRoot);
     var first = Zip("first.zip", firstCommit);
     var second = Zip("second.zip", secondCommit);
     AddonInstaller.Install(retail, first, firstCommit);

@@ -10,6 +10,7 @@ internal sealed class Settings
 {
     public string RetailFolder { get; set; } = "";
     public bool Automatic { get; set; } = true;
+    public string SimulatorPath { get; set; } = "";
 }
 
 internal sealed class MainForm : Form
@@ -41,12 +42,13 @@ internal sealed class MainForm : Form
     private Settings settings = new();
     private bool busy;
     private bool pausedAfterRollback;
+    private readonly SimulationPanel simulation;
 
     public MainForm(bool preview = false)
     {
         Text = "Evil Twins — Addon Updater";
-        ClientSize = new Size(720, 520);
-        MinimumSize = new Size(740, 560);
+        ClientSize = new Size(720, 620);
+        MinimumSize = new Size(740, 600);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 10);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 2, RowCount = 7 };
@@ -83,6 +85,11 @@ internal sealed class MainForm : Form
         reports.Controls.Add(reportStatus, 0, 4);
         reportStatus.Text = "Copy the import code, then paste it into Wishlist & upgrades in the addon. The addon saves and shares imported reports with online guild leaders.";
         reportsTab.Controls.Add(reports); tabs.TabPages.Add(reportsTab);
+        simulation = new SimulationPanel(stateDirectory);
+        var simulationTab = new TabPage("Local simulator");
+        simulationTab.Controls.Add(simulation); tabs.TabPages.Add(simulationTab);
+        simulation.EngineChanged += SaveSettings;
+        simulation.RunningChanged += () => updateApp.Enabled = !busy && !simulation.IsRunning && availableApp != null;
         var appBar = new TableLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(20, 12, 20, 12), ColumnCount = 2 };
         appBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         appBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -97,6 +104,7 @@ internal sealed class MainForm : Form
             catch (Exception error) { reportStatus.Text = error.Message; }
         };
         if (!preview) LoadSettings();
+        simulation.SetEnginePath(settings.SimulatorPath);
         folder.Text = settings.RetailFolder;
         automatic.Checked = settings.Automatic;
         tray.Visible = !preview;
@@ -121,6 +129,12 @@ internal sealed class MainForm : Form
             else status.Text = "Updates run while this app is open or minimized to the tray. Closing the app stops checks.";
         };
         FormClosed += (_, _) => { timer.Dispose(); tray.Dispose(); feed.Dispose(); droptimizer.Dispose(); };
+        FormClosing += async (_, args) => {
+            if (!simulation.IsRunning) return;
+            args.Cancel = true;
+            await simulation.StopAsync();
+            Close();
+        };
         if (preview)
         {
             RefreshBuild();
@@ -163,7 +177,7 @@ internal sealed class MainForm : Form
     {
         try
         {
-            settings = new Settings { RetailFolder = folder.Text, Automatic = automatic.Checked };
+            settings = new Settings { RetailFolder = folder.Text, Automatic = automatic.Checked, SimulatorPath = simulation.EnginePath };
             Directory.CreateDirectory(stateDirectory);
             var path = Path.Combine(stateDirectory, "settings.json");
             File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(settings));
@@ -202,7 +216,7 @@ internal sealed class MainForm : Form
     {
         busy = value;
         browse.Enabled = check.Enabled = local.Enabled = automatic.Enabled = fetchReport.Enabled = !value;
-        updateApp.Enabled = !value && availableApp != null;
+        updateApp.Enabled = !value && !simulation.IsRunning && availableApp != null;
         rollback.Enabled = false;
     }
 
@@ -249,9 +263,10 @@ internal sealed class MainForm : Form
 
     private async Task UpdateApplicationAsync()
     {
-        if (busy || availableApp == null || !appUpdates.IsInstalled) return;
+        if (busy || simulation.IsRunning || availableApp == null || !appUpdates.IsInstalled) return;
         try
         {
+            simulation.SetApplicationUpdating(true);
             SetBusy(true); SaveSettings();
             appStatus.Text = "Downloading and verifying the app update…";
             await appUpdates.DownloadUpdatesAsync(availableApp);
@@ -259,7 +274,7 @@ internal sealed class MainForm : Form
             appUpdates.ApplyUpdatesAndRestart(availableApp);
         }
         catch (Exception error) { appStatus.Text = "App update failed: " + error.Message; }
-        finally { SetBusy(false); RefreshBuild(); }
+        finally { simulation.SetApplicationUpdating(false); SetBusy(false); RefreshBuild(); }
     }
 
     private async Task ImportReportAsync()

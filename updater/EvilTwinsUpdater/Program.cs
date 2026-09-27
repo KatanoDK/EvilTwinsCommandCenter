@@ -6,7 +6,7 @@ internal static class Program
     private static void Main(string[] args)
     {
         Velopack.VelopackApp.Build().Run();
-        if (args.Length == 2 && (args[0] == "--preview" || args[0] == "--preview-reports"))
+        if (args.Length == 2 && (args[0] == "--preview" || args[0] == "--preview-reports" || args[0] == "--preview-simulator"))
         {
             ApplicationConfiguration.Initialize();
             using var form = new MainForm(preview: true);
@@ -14,6 +14,7 @@ internal static class Program
             form.Location = new Point(-32000, -32000);
             form.ShowInTaskbar = false;
             if (args[0] == "--preview-reports") form.Controls.OfType<TabControl>().Single().SelectedIndex = 1;
+            if (args[0] == "--preview-simulator") form.Controls.OfType<TabControl>().Single().SelectedIndex = 2;
             form.Show();
             Application.DoEvents();
             using var bitmap = new Bitmap(form.Width, form.Height);
