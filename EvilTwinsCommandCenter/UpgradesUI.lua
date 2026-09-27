@@ -1,6 +1,30 @@
 local _, ET = ...
 local UI = ET.UI
 
+local difficulties = {
+    ["raid-lfr"] = "Raid Finder", ["raid-normal"] = "Normal",
+    ["raid-heroic"] = "Heroic", ["raid-mythic"] = "Mythic",
+    ["mythic-plus"] = "Mythic+",
+}
+local function difficultyLabel(value)
+    return difficulties[value] or value:gsub("^raid%-", ""):gsub("%-", " "):gsub("(%a)([%w]*)", function(first, rest)
+        return first:upper() .. rest
+    end)
+end
+
+local function selectionKey(owner, specID)
+    return owner .. ":" .. tostring(specID or 0)
+end
+
+function UI:SelectUpgradeReport(id)
+    self.upgradeSelections = self.upgradeSelections or {}
+    local snapshot = ET.db.characters[self.selected]
+    if not snapshot then return end
+    self.upgradeSelections[selectionKey(self.selected, snapshot.specID)] = id
+    self.detailScroll:SetVerticalScroll(0)
+    self:RefreshDetail()
+end
+
 local function label(parent, text, font)
     local widget = parent:CreateFontString(nil, "OVERLAY", font or "GameFontHighlightSmall")
     widget:SetJustifyH("LEFT")
@@ -47,6 +71,8 @@ function UI:ShowUpgradeImport()
                 input:SetText(""); frame:Hide()
                 if ET.db.characters[report.owner] then UI.selected = report.owner
                 else ET:Print("The character will appear after its addon shares a snapshot with a leader.") end
+                UI.upgradeSelections = UI.upgradeSelections or {}
+                UI.upgradeSelections[selectionKey(report.owner, report.specID)] = report.id
                 UI:SetTab("wishlist")
                 UI:Refresh()
             else result:SetText(err) end
@@ -84,10 +110,13 @@ function UI:CreateUpgradesPanel()
     self.upgradeSelector:SetPoint("TOPLEFT", 16, -72)
     self.upgradeSelector:SetWidth(650)
     self.upgradeSelector:SetupMenu(function(_, root)
+        root:CreateRadio("Manual wishlist (hide report)",
+            function() return self.selectedUpgradeID == nil end,
+            function() self:SelectUpgradeReport(false) end, false)
         for _, report in ipairs(self.selectedUpgradeReports or {}) do
             root:CreateRadio(report.title .. " • " .. date("%m/%d %H:%M", report.updated),
                 function(value) return self.selectedUpgradeID == value end,
-                function(value) self.selectedUpgradeID = value; self:RefreshDetail() end, report.id)
+                function(value) self:SelectUpgradeReport(value) end, report.id)
         end
     end)
     self.upgradeSummary = label(parent, "")
@@ -103,16 +132,19 @@ function UI:CreateUpgradesPanel()
         local background = row:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
         background:SetColorTexture(1, 1, 1, index % 2 == 0 and 0.035 or 0)
+        row.icon = row:CreateTexture(nil, "ARTWORK")
+        row.icon:SetSize(32, 32)
+        row.icon:SetPoint("LEFT", 6, 0)
         row.title = label(row, "", "GameFontNormalSmall")
-        row.title:SetPoint("TOPLEFT", 6, -5)
-        row.title:SetWidth(425)
+        row.title:SetPoint("TOPLEFT", 48, -5)
+        row.title:SetWidth(383)
         row.gain = label(row, "")
         row.gain:SetPoint("TOPRIGHT", -6, -5)
         row.gain:SetJustifyH("RIGHT")
         row.gain:SetWidth(210)
         row.source = label(row, "")
-        row.source:SetPoint("TOPLEFT", 6, -25)
-        row.source:SetWidth(638)
+        row.source:SetPoint("TOPLEFT", 48, -25)
+        row.source:SetWidth(596)
         row:SetScript("OnEnter", function(self)
             if not self.item then return end
             local item = self.item
@@ -136,17 +168,23 @@ end
 
 function UI:RefreshUpgrades(snapshot)
     self.selectedUpgradeReports = ET.Upgrades:Get(self.selected, snapshot.specID)
+    self.upgradeSelections = self.upgradeSelections or {}
+    local key = selectionKey(self.selected, snapshot.specID)
+    local chosen = self.upgradeSelections[key]
     local selected
     for _, report in ipairs(self.selectedUpgradeReports) do
-        if report.id == self.selectedUpgradeID then selected = report; break end
+        if report.id == chosen then selected = report; break end
     end
-    selected = selected or self.selectedUpgradeReports[1]
+    if chosen ~= false then selected = selected or self.selectedUpgradeReports[1] end
+    if selected then self.upgradeSelections[key] = selected.id end
     self.selectedUpgradeID = selected and selected.id or nil
     self.upgradeLinkButton:SetEnabled(selected ~= nil)
-    self.upgradeSelector:SetShown(selected ~= nil)
+    local hasReports = #self.selectedUpgradeReports > 0
+    self.upgradeSelector:SetShown(hasReports)
     self.upgradeSummary:SetShown(selected ~= nil)
     self.upgradeSelector:GenerateMenu()
     self.upgradeHint:SetText(selected and "Positive DPS gains for this report only • top 100 • * within sim uncertainty"
+        or hasReports and "Report hidden. Select a saved report above to show simulated upgrades again."
         or "Import a Droptimizer report to rank upgrades without entering a wishlist.")
     if selected then
         self.upgradeSummary:SetText(ET.Upgrades:Freshness(selected, snapshot)
@@ -157,12 +195,22 @@ function UI:RefreshUpgrades(snapshot)
         local item = selected and selected.items[index]
         row.item = item
         if item then
+            local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(item.dropID)
+            if not icon and GetItemInfoInstant then icon = select(5, GetItemInfoInstant(item.dropID)) end
+            if not icon and C_Item and C_Item.RequestLoadItemDataByID then
+                self.upgradeIconRequests = self.upgradeIconRequests or {}
+                if not self.upgradeIconRequests[item.dropID] then
+                    self.upgradeIconRequests[item.dropID] = true
+                    C_Item.RequestLoadItemDataByID(item.dropID)
+                end
+            end
+            row.icon:SetTexture(icon or 134400)
             row.title:SetText(index .. ". " .. item.name .. "  (" .. item.itemLevel .. ")")
             row.gain:SetText(string.format("+%.0f DPS  (+%.2f%%)%s", item.gain, item.percent, item.withinError and " *" or ""))
-            row.source:SetText((item.boss ~= "" and item.boss or item.instance) .. " • " .. item.difficulty .. (item.dropID ~= item.simulatedID and " • Convert to tier" or ""))
+            row.source:SetText((item.boss ~= "" and item.boss or item.instance) .. " • " .. difficultyLabel(item.difficulty) .. (item.dropID ~= item.simulatedID and " • Convert to tier" or ""))
             row:Show()
         else row:Hide() end
     end
     if selected and #selected.items == 0 then self.upgradeHint:SetText("No positive upgrades in this completed report.") end
-    return selected and (188 + #selected.items * 48) or 86
+    return selected and (188 + #selected.items * 48) or hasReports and 116 or 86
 end

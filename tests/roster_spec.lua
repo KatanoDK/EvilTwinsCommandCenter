@@ -72,6 +72,7 @@ function methods:GetHeight() return self.height end
 function methods:SetPoint(...) self.point = { ... } end
 function methods:ClearAllPoints() self.point = nil end
 function methods:SetText(text) self.text = text end
+function methods:SetTexture(texture) self.texture = texture end
 function methods:GetText() return self.text or "" end
 function methods:SetEnabled(enabled) self.enabled = enabled end
 function methods:Show() local was = self.shown; self.shown = true; if not was and self.scripts.OnShow then self.scripts.OnShow(self) end end
@@ -161,12 +162,39 @@ function RunUpgradeUIChecks()
             boss = "Test boss", difficulty = "raid-normal", withinError = false }
     end
     ET.db.upgradeReports = { fixture = report }
+    report.items[2].difficulty = "raid-heroic"
+    local oldItems = C_Item
+    local iconRequests = 0
+    C_Item = { GetItemIconByID = function(id) return id == 1001 and 987654 or nil end,
+        RequestLoadItemDataByID = function() iconRequests = iconRequests + 1 end }
     UI:Refresh()
     UI:SetTab("wishlist")
     assert(UI.upgradeRows[1].shown and UI.upgradeRows[100].shown and #UI.upgradeRows == 100)
     assert(UI.upgradeRows[1].source.text:find("Convert to tier", 1, true))
+    assert(UI.upgradeRows[1].source.text == "Test boss • Normal • Convert to tier")
+    assert(UI.upgradeRows[2].source.text == "Test boss • Heroic • Convert to tier")
+    assert(UI.upgradeRows[1].icon.texture == 987654 and UI.upgradeRows[2].icon.texture == 134400,
+        "Use the drop item's icon, with a placeholder for uncached items")
+    assert(iconRequests == 99, "Repeated refreshes must not flood item data requests")
     assert(UI.upgradeRows[1].gain.text:find("0.50%", 1, true) and UI.upgradeLinkButton.enabled)
     assert(UI.wishHeading.point[3] < -4900 and UI.wishPanel:GetHeight() > 5000, "Manual wishlist must be laid out after upgrade rows")
+    UI.detailScroll:SetVerticalScroll(4500)
+    UI.upgradeSelector.choices[1].pick(false)
+    UI:Refresh()
+    assert(not UI.upgradeRows[1].shown and not UI.upgradeRows[100].shown and not UI.upgradeLinkButton.enabled)
+    assert(UI.upgradeSelector.shown and UI.upgradeSelector.choices[1].selected(), "The dropdown must allow reopening a hidden report")
+    assert(UI.detailScroll:GetVerticalScroll() == 0 and UI.wishPanel:GetHeight() < 300 and UI.itemInput.shown,
+        "Deselecting must bring the self wishlist controls into view")
+    UI.selected = "Alpha-Realm"; UI:RefreshDetail()
+    assert(not UI.itemInput.shown and not UI.wishRows[1].remove.shown, "Wishlist editing must remain limited to the logged-in character")
+    UI.selected = ET.key; UI:RefreshDetail()
+    assert(not UI.upgradeRows[1].shown, "Returning to a character must preserve its hidden report selection")
+    UI.upgradeSelector.choices[2].pick(report.id)
+    assert(UI.upgradeRows[1].shown and UI.upgradeLinkButton.enabled, "A saved report can be selected again")
+    C_Item = { GetItemIconByID = function() return 123456 end }
+    UI:RefreshDetail()
+    assert(UI.upgradeRows[2].icon.texture == 123456, "Newly cached icons must update on refresh")
+    C_Item = oldItems
     UI.selected = "Alpha-Realm"; UI:RefreshDetail()
     assert(not UI.upgradeRows[1].shown and not UI.upgradeLinkButton.enabled and not UI.upgradeSelector.shown, "Switching characters must clear the previous report")
     ET.db.upgradeReports = {}; leader = false
