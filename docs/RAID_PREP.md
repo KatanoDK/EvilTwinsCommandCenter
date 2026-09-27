@@ -1,11 +1,10 @@
 # Raid prep
 
-The character sidebar stays the same. The right side has four tabs:
+The character sidebar stays the same. The right side has three tabs:
 
 - **Raid prep:** current enchant and gem names, missing or unavailable data, repairs, missing gear, and carried supplies.
-- **Build & SimC:** copy talents, copy the cached SimC export, and generate/request a fresh export.
-- **Bags:** inspect the last shared carried-item list and see whether the snapshot is complete.
-- **Wishlist:** view a character's wanted items or edit your own list.
+- **Build & SimC:** copy talents, copy the cached SimC export, and generate/request a fresh export including carried gear alternatives for Top Gear.
+- **Wishlist:** view a character's wanted items or edit your own list, with a raid boss / Mythic+ loot picker.
 
 The selected character summary and tabs stay visible when scrolling. Guild raid prep and the crafting directory remain available from the window header. Guild ranks 0–5 retain access to character tools; all ranks retain the crafting directory.
 

@@ -105,3 +105,25 @@ C_Traits.GenerateImportString = function() return "" end
 assert(not ET:GetSimCProfile(), "Unloaded talent data must not produce a misleading export.")
 assert(not S:ItemLine("head", "item:123:0:0:0:0:0:0:0:0:0:0:0:2:100"), "Incomplete bonus lists must be rejected.")
 assert(not S:ItemLine("waist", "item:242664"), "Legacy special effects must not be guessed.")
+
+-- Bag alternatives use Top Gear comments, never replace equipped slots or visit a bank.
+local bagItems = { [0] = { { id = 12345, link = crafted }, { id = 12345, link = crafted }, { id = 999, link = "item:999" } },
+    [4] = { { id = 54321, link = "item:54321" } } }
+function GetItemInfoInstant(id) return id, nil, nil, id == 999 and "" or id == 54321 and "INVTYPE_TRINKET" or "INVTYPE_HEAD" end
+C_Container = {
+    GetContainerNumSlots = function(bag) assert(bag >= 0 and bag <= 4, "Bank slots must never be scanned"); return #(bagItems[bag] or {}) end,
+    GetContainerItemID = function(bag, index) return bagItems[bag][index].id end,
+    GetContainerItemLink = function(bag, index) return bagItems[bag][index].link end,
+}
+local bagProfile = assert(S:AppendCarriedGear("head=,id=1\n"))
+assert(bagProfile:find("### Gear from Bags", 1, true) and bagProfile:find("# " .. expected, 1, true))
+assert(bagProfile:find("# trinket1=,id=54321", 1, true))
+assert(not bagProfile:find("id=999", 1, true), "Non-equipment must not enter a simulation")
+local _, occurrences = bagProfile:gsub("id=12345", "")
+assert(occurrences == 1, "Identical variants should be deduplicated")
+bagItems[0][1].link = nil
+assert(not S:AppendCarriedGear("head=,id=1\n"), "Missing bag gear must not silently produce an incomplete export")
+bagItems[0][1].link = crafted
+C_Traits.GenerateImportString = function() return "TESTTALENTSTRING" end
+local fresh = assert(ET:GetSimCProfile())
+assert(fresh:find("### Gear from Bags", 1, true), "Native player exports must include carried alternatives")

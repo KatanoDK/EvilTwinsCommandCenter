@@ -58,11 +58,13 @@ end
 
 -- Minimal UI host: exercise the real callbacks and recycled row bindings.
 local methods = {}
+function methods:GetFrameLevel() return 1 end
+function methods:SetFrameLevel(value) self.frameLevel = value end
 local function widget(parent) return setmetatable({ parent = parent, shown = true, scripts = {}, hooks = {}, height = 406 }, { __index = methods }) end
 for _, name in ipairs({ "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor", "SetAlpha",
     "SetClampedToScreen", "SetToplevel", "Raise", "SetJustifyH", "SetWordWrap", "SetTextColor", "SetFrameStrata",
     "EnableMouse", "SetMovable", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetAutoFocus",
-    "ClearFocus", "SetColorTexture", "SetAllPoints", "SetHighlightTexture", "SetMaxLines", "RegisterEvent" }) do methods[name] = function() end end
+    "ClearFocus", "SetColorTexture", "SetAllPoints", "SetHighlightTexture", "SetMaxLines", "RegisterEvent", "SetTexture" }) do methods[name] = function() end end
 function methods:SetSize(w, h) self.width, self.height = w, h end
 function methods:SetWidth(w) self.width = w end
 function methods:SetHeight(h) self.height = h end
@@ -133,12 +135,13 @@ function RunUIChecks()
     UI:SetTab("build")
     assert(UI.tabPanels.build.shown and not UI.tabPanels.wishlist.shown and UI.activeTab == "build")
     UI:SetTab("bags")
-    assert(UI.tabPanels.bags.shown and not UI.bagButton.enabled)
+    assert(UI.activeTab == "build" and not UI.tabPanels.bags and not UI.bagButton, "Bags must stay internal")
+    assert(UI.tabButtons.build.selected and UI.tabButtons.build.accent.shown and not UI.tabButtons.prep.accent.shown)
     leader = false
     UI:Refresh()
     assert(not UI.sidebar.shown and not UI.detailScroll.shown and UI.craftingButton.shown, "Losing leader access must hide all leader panels")
     assert(UI.selected == ET.key and #UI.rosterEntries == 1)
     assert(not UI.profilePanel.shown and not UI.tabButtons.prep.shown)
     UI:SetTab("prep")
-    assert(UI.activeTab == "bags", "Members must not switch to leader tools")
+    assert(UI.activeTab == "build", "Members must not switch to leader tools")
 end

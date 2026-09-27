@@ -73,11 +73,16 @@ function Inventory:ScanBag(bagID, publish)
     if self:Store(ET.key, guid, bagID, time(), items) and publish then
         ET.Comm:PublishBag(bagID)
     end
+    return true
 end
 
 function Inventory:CaptureBags(publish)
     if InCombatLockdown and InCombatLockdown() then return end
-    for bagID = 0, bagCount() - 1 do self:ScanBag(bagID, publish) end
+    local changed = false
+    for bagID = 0, bagCount() - 1 do
+        if self:ScanBag(bagID, publish) then changed = true end
+    end
+    if changed then ET:ScheduleSimCPublish() end
 end
 
 function Inventory:ScheduleScan()

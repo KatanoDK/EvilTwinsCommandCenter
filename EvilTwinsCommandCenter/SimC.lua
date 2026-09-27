@@ -64,12 +64,12 @@ function SimC:InstalledCollector()
 end
 
 function SimC:Source()
-    return self:InstalledCollector() and "SimulationCraft (equipped gear)" or "built-in (equipped gear)"
+    return self:InstalledCollector() and "SimulationCraft + carried gear" or "built-in + carried gear"
 end
 
 function SimC:ItemLine(slot, link)
     local payload = type(link) == "string" and link:match("item:([%d:%-]+)")
-    if not payload then return nil, "An equipped item link is not ready yet. Try again in a moment." end
+    if not payload then return nil, "An item link is not ready yet. Try again in a moment." end
     local fields = setmetatable({}, { __index = function() return 0 end })
     for field in (payload .. ":"):gmatch("(.-):") do
         local value = field == "" and 0 or tonumber(field)
@@ -204,6 +204,55 @@ function SimC:NativeProfile()
     return table.concat(lines, "\n") .. "\n"
 end
 
+local bagSlots = {
+    INVTYPE_HEAD = "head", INVTYPE_NECK = "neck", INVTYPE_SHOULDER = "shoulder", INVTYPE_CLOAK = "back",
+    INVTYPE_CHEST = "chest", INVTYPE_ROBE = "chest", INVTYPE_WRIST = "wrist", INVTYPE_HAND = "hands",
+    INVTYPE_WAIST = "waist", INVTYPE_LEGS = "legs", INVTYPE_FEET = "feet", INVTYPE_FINGER = "finger1",
+    INVTYPE_TRINKET = "trinket1", INVTYPE_WEAPON = "main_hand", INVTYPE_2HWEAPON = "main_hand",
+    INVTYPE_WEAPONMAINHAND = "main_hand", INVTYPE_WEAPONOFFHAND = "off_hand", INVTYPE_SHIELD = "off_hand",
+    INVTYPE_HOLDABLE = "off_hand", INVTYPE_RANGED = "main_hand", INVTYPE_RANGEDRIGHT = "main_hand",
+}
+
+function SimC:AppendCarriedGear(profile)
+    if not C_Container or not C_Container.GetContainerNumSlots then return profile end
+    local instant = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    if not instant then return nil, "Bag item data is not available yet. Try again shortly." end
+    local count = Constants and Constants.InventoryConstants and Constants.InventoryConstants.NumBagSlots or NUM_BAG_SLOTS or 4
+    local lines, seen = {}, {}
+    -- Only carried bags; upstream's bag collector can also visit banks.
+    for bag = 0, count do
+        for index = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+            local id = C_Container.GetContainerItemID(bag, index)
+            if id then
+                local itemID, _, _, location = instant(id)
+                if not itemID then return nil, "Bag item data is still loading. Try again shortly." end
+                local slot = bagSlots[location]
+                if slot then
+                    local link = C_Container.GetContainerItemLink(bag, index)
+                    if not link then return nil, "Bag gear data is still loading. Try again shortly." end
+                    local line, err = self:ItemLine(slot, link)
+                    if not line then return nil, err end
+                    if not seen[line] then
+                        seen[line] = true
+                        lines[#lines + 1] = { line = line, name = link:match("%[(.-)%]") or ("Item #" .. id) }
+                    end
+                end
+            end
+        end
+    end
+    table.sort(lines, function(a, b) return a.line < b.line end)
+    if #lines == 0 then return profile end
+    local output = { profile, "", "### Gear from Bags" }
+    for _, entry in ipairs(lines) do
+        output[#output + 1] = "#"
+        output[#output + 1] = "# " .. entry.name
+        -- Commented alternatives are the format read by Raidbots Top Gear;
+        -- they must not replace equipped slots in a single-character SimC run.
+        output[#output + 1] = "# " .. entry.line
+    end
+    return table.concat(output, "\n") .. "\n"
+end
+
 function ET:GetSimCProfile()
     if InCombatLockdown and InCombatLockdown() then return nil, "Generate SimC after leaving combat." end
     local instance, method = self.SimC:InstalledCollector()
@@ -211,9 +260,16 @@ function ET:GetSimCProfile()
         -- The collector's function is an unbound method; supply its AceAddon instance.
         -- noBags=true also excludes bank items in the upstream exporter.
         local ok, profile, err = pcall(method, instance, false, true, false, nil)
-        if ok and type(profile) == "string" and #profile > 0 and not err then return profile end
+        if ok and type(profile) == "string" and #profile > 0 and not err then
+            local bagOK, output, bagErr = pcall(self.SimC.AppendCarriedGear, self.SimC, profile)
+            if bagOK then return output, bagErr end
+            return nil, "Bag gear export data is not ready. Try again shortly."
+        end
     end
     local ok, profile, err = pcall(self.SimC.NativeProfile, self.SimC)
     if not ok then return nil, "Character export data is not ready. Open your talents and try again shortly." end
-    return profile, err
+    if not profile then return nil, err end
+    local bagOK, output, bagErr = pcall(self.SimC.AppendCarriedGear, self.SimC, profile)
+    if not bagOK then return nil, "Bag gear export data is not ready. Try again shortly." end
+    return output, bagErr
 end

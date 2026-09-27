@@ -45,6 +45,32 @@ local function panel(parent, width, height)
     return widget
 end
 
+function ET:StylePanel(widget)
+    widget:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    widget:SetBackdropColor(0.065, 0.075, 0.095, 1)
+    widget:SetBackdropBorderColor(0.18, 0.2, 0.26, 1)
+end
+
+local function navigationTab(parent, title, onClick)
+    local tab = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    tab:SetSize(158, 30)
+    tab:SetFrameLevel(parent:GetFrameLevel() + 5)
+    ET:StylePanel(tab)
+    tab.title = label(tab, title, "GameFontNormal")
+    tab.title:SetPoint("CENTER")
+    tab.accent = tab:CreateTexture(nil, "ARTWORK")
+    tab.accent:SetColorTexture(0.65, 0.48, 0.9, 1)
+    tab.accent:SetPoint("TOPLEFT", 1, -1)
+    tab.accent:SetSize(156, 3)
+    tab.seam = tab:CreateTexture(nil, "OVERLAY")
+    tab.seam:SetColorTexture(0.065, 0.075, 0.095, 1)
+    tab.seam:SetPoint("BOTTOMLEFT", 1, -1)
+    tab.seam:SetSize(156, 3)
+    tab:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    tab:SetScript("OnClick", onClick)
+    return tab
+end
+
 local function dropdown(parent, width, choices, setting, default)
     local widget = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
     widget:SetWidth(width)
@@ -377,32 +403,26 @@ function UI:Create()
 
     self.tabPanels, self.tabButtons = {}, {}
     self.activeTab = "prep"
-    local tabs = { { "prep", "Raid prep" }, { "build", "Build & SimC" },
-        { "bags", "Bags" }, { "wishlist", "Wishlist" } }
+    local tabs = { { "prep", "Raid prep" }, { "build", "Build & SimC" }, { "wishlist", "Wishlist" } }
     for index, entry in ipairs(tabs) do
         local key = entry[1]
-        local tab = button(frame, entry[2], 165, 27, function() UI:SetTab(key) end)
-        tab:SetPoint("TOPLEFT", 302 + (index - 1) * 173, -162)
+        local tab = navigationTab(frame, entry[2], function() UI:SetTab(key) end)
+        tab:SetPoint("TOPLEFT", 302 + (index - 1) * 162, -173)
         self.tabButtons[key] = tab
     end
-    local buildPanel = panel(detail, 686, 152)
+    local buildPanel = panel(detail, 686, 196)
     buildPanel:SetPoint("TOPLEFT")
     self.tabPanels.build = buildPanel
     label(buildPanel, "TALENTS & SIMULATIONCRAFT", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
-    label(buildPanel, "Copy the active talent build or the last shared SimC export.", "GameFontHighlightSmall")
+    label(buildPanel, "Export talents, equipped gear, and carried gear for a Top Gear comparison.", "GameFontHighlightSmall")
         :SetPoint("TOPLEFT", 16, -42)
     self.buildStatus = label(buildPanel, "", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
     self.buildStatus:SetPoint("TOPLEFT", 16, -115)
     self.buildStatus:SetWidth(650)
-    local bagsPanel = panel(detail, 686, 152)
-    bagsPanel:SetPoint("TOPLEFT")
-    self.tabPanels.bags = bagsPanel
-    label(bagsPanel, "CARRIED BAGS", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
-    self.bagStatus = label(bagsPanel, "", "GameFontHighlightSmall")
-    self.bagStatus:SetPoint("TOPLEFT", 16, -42)
-    self.bagStatus:SetWidth(650)
-    label(bagsPanel, "Last shared contents; offline characters keep their saved snapshot.", "GameFontHighlightSmall",
-        { 0.65, 0.7, 0.8 }):SetPoint("TOPLEFT", 16, -116)
+    label(buildPanel, "Paste the export into Raidbots Top Gear to compare alternatives.", "GameFontHighlightSmall",
+        { 0.65, 0.7, 0.8 }):SetPoint("TOPLEFT", 16, -140)
+    label(buildPanel, "An item's level alone does not tell us whether it is an upgrade.", "GameFontHighlightSmall",
+        { 0.65, 0.7, 0.8 }):SetPoint("TOPLEFT", 16, -160)
 
     local talentButton = button(buildPanel, "Copy talent build", 160, 26, function()
         local snapshot = ET.db.characters[UI.selected]
@@ -438,15 +458,6 @@ function UI:Create()
     end)
     refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 8, 0)
     self.refreshSimcButton = refreshSimc
-
-    local bagButton = button(bagsPanel, "View bags", 150, 26, function()
-        local snapshot = ET.db.characters[UI.selected]
-        if not snapshot then return end
-        local content = ET.Inventory:Format(UI.selected, snapshot.guid)
-        if content then UI:ShowCopy("Bags: " .. UI.selected, content) end
-    end)
-    bagButton:SetPoint("TOPLEFT", 16, -72)
-    self.bagButton = bagButton
 
     local prepPanel = panel(detail, 686, 500)
     prepPanel:SetPoint("TOPLEFT")
@@ -501,6 +512,8 @@ function UI:Create()
     self.wishPanel = wishPanel
     local wishHeading = label(wishPanel, "GEAR WISHLIST", "GameFontNormal")
     wishHeading:SetPoint("TOPLEFT", 16, -14)
+    self.browseLootButton = button(wishPanel, "Browse boss / dungeon loot", 225, 25, function() UI:ShowLootPicker() end)
+    self.browseLootButton:SetPoint("TOPRIGHT", -16, -8)
     local emptyWish = label(wishPanel, "No items added yet.", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
     emptyWish:SetPoint("TOPLEFT", 16, -98)
     emptyWish:SetWidth(650)
@@ -591,7 +604,12 @@ end
 function UI:RefreshTabs()
     for key, widget in pairs(self.tabPanels) do
         widget:SetShown(key == self.activeTab)
-        self.tabButtons[key]:SetEnabled(key ~= self.activeTab)
+        local tab, selected = self.tabButtons[key], key == self.activeTab
+        tab.selected = selected
+        tab.accent:SetShown(selected)
+        tab.seam:SetShown(selected)
+        tab:SetBackdropColor(selected and 0.065 or 0.035, selected and 0.075 or 0.04, selected and 0.095 or 0.055, 1)
+        tab.title:SetTextColor(selected and 1 or 0.65, selected and 0.82 or 0.7, selected and 0.4 or 0.8)
     end
     self.detail:SetHeight(self.tabPanels[self.activeTab]:GetHeight() + 12)
 end
@@ -767,22 +785,11 @@ function UI:RefreshDetail()
     self.timestamp:SetText("Snapshot: " .. date("%Y-%m-%d %H:%M", snapshot.updated)
         .. (cached and ("    SimC: " .. date("%Y-%m-%d %H:%M", cached.updated)) or "    SimC: none cached"))
     self.refreshSimcButton:SetText(isSelf and "Generate SimC" or "Request fresh")
-    self.buildStatus:SetText(isSelf and "Generate a new export from your current build and equipped gear."
+    self.buildStatus:SetText(isSelf and "Generate a new export including gear in your current bags."
         or "Request fresh needs this character online with the addon enabled.")
     local inventory = ET.Inventory:Get(self.selected, snapshot.guid)
-    self.bagButton:SetEnabled(inventory ~= nil)
-    local totalItems, complete, oldest = 0, inventory ~= nil, math.huge
-    if inventory then
-        for bagID = 0, ET.Inventory:BagCount() - 1 do
-            local bag = inventory.containers[bagID]
-            if bag then totalItems, oldest = totalItems + #bag.items, math.min(oldest, bag.updated or 0)
-            else complete = false end
-        end
-    end
-    self.bagStatus:SetText(not inventory and "No bag snapshot received yet."
-        or not complete and "Partial bag snapshot — waiting for the remaining bags."
-        or (totalItems .. " item stacks  •  Captured " .. date("%Y-%m-%d %H:%M", oldest)))
     self:RefreshPrep(snapshot, inventory)
+    self.browseLootButton:SetShown(isSelf)
     self.itemInput:SetShown(isSelf)
     self.noteInput:SetShown(isSelf)
     self.addButton:SetShown(isSelf)
@@ -827,6 +834,7 @@ function UI:Refresh()
     self.memberRank:SetShown(not isLeader)
     if not isLeader then
         if self.overviewFrame then self.overviewFrame:Hide() end
+        if self.lootFrame then self.lootFrame:Hide() end
         if self.selected ~= ET.key and self.copyFrame then self.copyFrame:Hide() end
     end
     self:RefreshRoster()

@@ -16,5 +16,7 @@ Crafting.lua
 Consumables.lua
 RaidPrep.lua
 Roster.lua
+Loot.lua
 UI.lua
 CraftingUI.lua
+LootUI.lua

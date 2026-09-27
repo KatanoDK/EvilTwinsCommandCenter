@@ -32,10 +32,15 @@ for name in ("Consumables", "RaidPrep", "Roster", "UI"):
     if name == "Roster":
         ui_lua.execute("RunRosterChecks()")
 ui_lua.execute("RunUIChecks()")
+ui_lua.execute((root / "tests" / "loot_spec.lua").read_text(encoding="utf-8"))
+for name in ("Loot", "CraftingUI", "LootUI"):
+    source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
+    ui_lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
+ui_lua.execute("RunLootChecks(); RunDirectoryUIChecks()")
 prep_lua = LuaRuntime(unpack_returned_tuples=True)
 prep_lua.execute((root / "tests" / "raid_prep_spec.lua").read_text(encoding="utf-8"))
 for name in ("Consumables", "RaidPrep"):
     source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
     prep_lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
 prep_lua.execute("RunPrepChecks()")
-print("All Lua files compile; crafting, ranks, SimC, roster, tabs, and automatic raid-prep checks passed.")
+print("All Lua files compile; crafting groups, loot wishlist, ranks, SimC, roster, tabs, and raid-prep checks passed.")
