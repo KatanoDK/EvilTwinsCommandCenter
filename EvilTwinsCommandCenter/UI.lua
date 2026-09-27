@@ -584,12 +584,9 @@ function UI:Create()
     footer:SetPoint("BOTTOMLEFT", 23, 20)
     self.footer = footer
     local memberMessage = label(frame,
-        "Gear, carried bags, and SimC profiles sync automatically to online leaders.",
+        "Open the crafting directory to find guildmates who can make an item.",
         "GameFontHighlightSmall")
     memberMessage:SetPoint("TOPLEFT", 24, -64)
-    local memberRank = label(frame, "Open the crafting directory to find guildmates who can make an item.", "GameFontHighlightSmall")
-    memberRank:SetPoint("TOPLEFT", 24, -88)
-    self.memberRank = memberRank
     self.memberMessage = memberMessage
     frame:SetScript("OnShow", function() UI:Refresh() end)
     frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
@@ -842,15 +839,14 @@ function UI:Refresh()
     self.overviewButton:SetShown(isLeader)
     self.craftingButton:SetShown(inGuild)
     self.frame:SetWidth(isLeader and 1050 or 650)
-    self.frame:SetHeight(isLeader and 720 or 135)
+    self.frame:SetHeight(isLeader and 720 or 110)
     self.sidebar:SetShown(isLeader)
     self.profilePanel:SetShown(isLeader)
     for _, tab in pairs(self.tabButtons) do tab:SetShown(isLeader) end
     self.detailScroll:SetShown(isLeader)
     self.footer:SetShown(isLeader)
     self.memberMessage:SetShown(not isLeader)
-    self.memberRank:SetShown(not isLeader and inGuild)
-    self.memberMessage:SetText(inGuild and "Gear, carried bags, and SimC profiles sync automatically to online leaders."
+    self.memberMessage:SetText(inGuild and "Open the crafting directory to find guildmates who can make an item."
         or "Join a guild to use the crafting directory.")
     if not isLeader then
         if self.overviewFrame then self.overviewFrame:Hide() end

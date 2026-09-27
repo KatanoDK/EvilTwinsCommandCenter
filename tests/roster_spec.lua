@@ -168,8 +168,10 @@ function RunUIChecks()
     end
     assert(not UI.copyFrame.shown and not UI.overviewFrame.shown and not UI.lootFrame.shown
         and not UI.upgradeImport.shown, "Demotion must close every leader dialog")
-    assert(UI.craftingFrame.shown and UI.craftingButton.shown and UI.memberMessage.shown and UI.memberRank.shown,
+    assert(UI.craftingFrame.shown and UI.craftingButton.shown and UI.memberMessage.shown,
         "Crafting must remain available to lower guild ranks")
+    assert(UI.memberMessage.text == "Open the crafting directory to find guildmates who can make an item."
+        and UI.frame:GetHeight() == 110 and not UI.memberRank, "The member view must not mention automatic sharing")
     UI:ShowCopy("Restricted report", "data")
     assert(not UI.copyFrame.shown, "Members must not reopen a leader copy window")
     UI:SetTab("prep")
@@ -177,7 +179,7 @@ function RunUIChecks()
     local oldGuild = IsInGuild
     IsInGuild = function() return false end
     UI:Refresh()
-    assert(not UI.craftingButton.shown and not UI.craftingFrame.shown and not UI.memberRank.shown,
+    assert(not UI.craftingButton.shown and not UI.craftingFrame.shown,
         "Leaving the guild must also hide the crafting directory")
     IsInGuild = oldGuild
     UI:Refresh()
