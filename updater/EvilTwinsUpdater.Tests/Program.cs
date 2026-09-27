@@ -11,6 +11,21 @@ if (args.Length > 0 && args[0] == "input.simc" && File.Exists(Path.Combine(AppCo
     return;
 }
 
+if (args.Length == 2 && args[0] == "--verify-loot-data")
+{
+    var catalog = await RaidLootCatalog.LoadAsync(args[1]);
+    var cached = await RaidLootCatalog.LoadAsync(args[1]);
+    if (catalog.Sources.Count == 0 || cached.Sources.Count != catalog.Sources.Count) throw new Exception("Loot catalog did not download and cache correctly.");
+    Console.WriteLine($"PASS: live loot download and coherent cache, {catalog.SeasonName}, {string.Join(", ", catalog.Sources)}.");
+    return;
+}
+
+if (args.Length == 4 && args[0] == "--verify-raid")
+{
+    await RaidTests.VerifyReal(args[1], args[2], args[3]);
+    return;
+}
+
 if (args.Length == 4 && args[0] == "--verify-local-sim")
 {
     await SimulationTests.VerifyReal(args[1], args[2], args[3]);
@@ -74,6 +89,7 @@ try
     await DropTests.Run(testRoot);
     await AppUpdateTests.Run(testRoot);
     await SimulationTests.Run(testRoot);
+    RaidTests.Run();
     var first = Zip("first.zip", firstCommit);
     var second = Zip("second.zip", secondCommit);
     AddonInstaller.Install(retail, first, firstCommit);

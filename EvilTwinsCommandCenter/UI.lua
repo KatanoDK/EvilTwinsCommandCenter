@@ -411,7 +411,7 @@ function UI:Create()
         tab:SetPoint("TOPLEFT", 302 + (index - 1) * 162, -173)
         self.tabButtons[key] = tab
     end
-    local buildPanel = panel(detail, 686, 196)
+    local buildPanel = panel(detail, 686, 244)
     buildPanel:SetPoint("TOPLEFT")
     self.tabPanels.build = buildPanel
     label(buildPanel, "TALENTS & SIMULATIONCRAFT", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
@@ -459,6 +459,8 @@ function UI:Create()
     end)
     refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 8, 0)
     self.refreshSimcButton = refreshSimc
+    local raidExport = button(buildPanel, "Raid DPS export", 180, 28, function() UI:ShowRaidSimC() end)
+    raidExport:SetPoint("TOPLEFT", 16, -196)
 
     local prepPanel = panel(detail, 686, 500)
     prepPanel:SetPoint("TOPLEFT")
@@ -853,6 +855,7 @@ function UI:Refresh()
         if self.lootFrame then self.lootFrame:Hide() end
         if self.upgradeImport then self.upgradeImport:Hide() end
         if self.copyFrame then self.copyFrame:Hide() end
+        if self.raidSimCFrame then self.raidSimCFrame:Hide() end
     end
     if not inGuild and self.craftingFrame then self.craftingFrame:Hide() end
     self:RefreshRoster()

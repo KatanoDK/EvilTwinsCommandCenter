@@ -51,3 +51,9 @@ for name in ("Protocol", "SimC", "Upgrades", "Comm"):
     upgrade_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8"))
 upgrade_lua.globals().RunUpgradeChecks((root / "tests" / "fixtures" / "droptimizer-code.txt").read_text(encoding="utf-8"))
 upgrade_lua.globals().RunTrashUpgradeChecks((root / "tests" / "fixtures" / "droptimizer-trash-code.txt").read_text(encoding="utf-8"))
+
+raid_lua = LuaRuntime(unpack_returned_tuples=True)
+raid_lua.execute((root / "tests" / "raid_simc_spec.lua").read_text(encoding="utf-8"))
+for name in ("Protocol", "RaidSimC"):
+    raid_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8"))
+raid_lua.execute("RunRaidChecks()")

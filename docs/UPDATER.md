@@ -30,7 +30,7 @@ App packages use [Velopack](https://docs.velopack.io/getting-started/wpf), pinne
 
 The app's **Droptimizer** tab imports completed reports into the addon; see [Droptimizer instructions](DROPTIMIZER.md).
 
-The **Local simulator** tab runs basic CPU simulations using a separately downloaded SimulationCraft engine; see [setup and usage](LOCAL_SIMULATOR.md). It remembers the engine location, supports background/full-speed runs, displays DPS uncertainty and engine notes, and saves reports locally.
+The desktop app uses a dark sidebar, rounded cards and a table of imported upgrades. **Raid upgrades** replaces the standalone simulator screen: import the raid's DPS exports, queue individual local Droptimizers, or import completed Raidbots reports for those players. Results can be filtered by player or searched by drop/boss. Local queues display progress and an approximate time remaining, preserve completed results when stopped, and resume remaining players with the same settings. See [raid Droptimizer setup](RAID_DROPTIMIZER.md).
 
 ## Build and test
 

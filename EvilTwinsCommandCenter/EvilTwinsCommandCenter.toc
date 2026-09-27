@@ -19,6 +19,7 @@ RaidPrep.lua
 Roster.lua
 Loot.lua
 UI.lua
+RaidSimC.lua
 CraftingUI.lua
 LootUI.lua
 UpgradesUI.lua

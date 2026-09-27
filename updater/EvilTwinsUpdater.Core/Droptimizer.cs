@@ -60,14 +60,15 @@ public sealed partial class DroptimizerClient : IDisposable
         return pieces[2];
     }
 
-    public async Task<DropReport> FetchAsync(string input)
+    public async Task<DropReport> FetchAsync(string input, CancellationToken cancellation = default)
     {
         var id = ReportId(input);
-        using var response = await client.GetAsync($"https://www.raidbots.com/reports/{id}/data.json", HttpCompletionOption.ResponseHeadersRead);
+        using var response = await client.GetAsync($"https://www.raidbots.com/reports/{id}/data.json", HttpCompletionOption.ResponseHeadersRead, cancellation);
         response.EnsureSuccessStatusCode();
         const int maximum = 30 * 1024 * 1024;
         if (response.Content.Headers.ContentLength > maximum) throw new InvalidDataException("Report exceeds the download limit.");
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        deadline.CancelAfter(TimeSpan.FromSeconds(60));
         await using var inputStream = await response.Content.ReadAsStreamAsync(deadline.Token);
         using var data = new MemoryStream();
         var buffer = new byte[65536];

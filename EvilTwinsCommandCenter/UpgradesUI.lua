@@ -99,7 +99,7 @@ function UI:CreateUpgradesPanel()
     self.upgradeLinkButton:SetPoint("TOPRIGHT", -152, -8)
     self.upgradeLinkButton:SetText("Copy report link")
     self.upgradeLinkButton:SetScript("OnClick", function()
-        if self.selectedUpgradeID and ET:CanUseLeaderTools() then
+        if self.selectedUpgradeID and not self.selectedUpgradeID:match("^Local") and ET:CanUseLeaderTools() then
             UI:ShowCopy("Raidbots report", "https://www.raidbots.com/simbot/report/" .. self.selectedUpgradeID)
         end
     end)
@@ -178,7 +178,7 @@ function UI:RefreshUpgrades(snapshot)
     if chosen ~= false then selected = selected or self.selectedUpgradeReports[1] end
     if selected then self.upgradeSelections[key] = selected.id end
     self.selectedUpgradeID = selected and selected.id or nil
-    self.upgradeLinkButton:SetEnabled(selected ~= nil)
+    self.upgradeLinkButton:SetEnabled(selected ~= nil and not selected.id:match("^Local"))
     local hasReports = #self.selectedUpgradeReports > 0
     self.upgradeSelector:SetShown(hasReports)
     self.upgradeSummary:SetShown(selected ~= nil)

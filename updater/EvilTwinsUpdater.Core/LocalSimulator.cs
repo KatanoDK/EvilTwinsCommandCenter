@@ -81,8 +81,15 @@ public sealed class LocalSimulator
         string outputRoot, IProgress<string>? progress = null, CancellationToken cancellation = default,
         IReadOnlyCollection<int>? selectedBagItems = null)
     {
-        engine = ValidateEngine(engine);
         var swaps = selectedBagItems is { Count: > 0 } ? BagComparisons.CreateSets(profile, selectedBagItems) : [];
+        return await RunSetsAsync(engine, profile, options, outputRoot, swaps, progress, cancellation);
+    }
+
+    // Only trusted, validated catalog code can construct variants; pasted profiles cannot inject profilesets.
+    internal async Task<SimulationResult> RunSetsAsync(string engine, string profile, SimulationOptions options,
+        string outputRoot, IReadOnlyList<GearSet> swaps, IProgress<string>? progress, CancellationToken cancellation)
+    {
+        engine = ValidateEngine(engine);
         profile = BagComparisons.AppendSets(PrepareProfile(profile), swaps);
         if (options.Iterations is < 100 or > 100_000 || options.Duration is < 30 or > 900
             || options.Targets is < 1 or > 20 || !Enum.IsDefined(options.Mode))

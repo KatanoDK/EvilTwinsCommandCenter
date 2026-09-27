@@ -89,7 +89,10 @@ internal static class SimulationTests
         if (input.Contains("FixtureMissing")) sets = [];
         Console.WriteLine($"Baseline\t1\t{sets.Length + 1}\t{Option("iterations")}\t{Option("iterations")}\t100\t1");
         for (var index = 0; index < sets.Length; index++)
+        {
+            if (input.Contains("FixtureQueue")) await Task.Delay(20);
             Console.WriteLine($"Profileset\t{sets[index].name}\t{index + 2}\t{sets.Length + 1}\t{Option("iterations")}\t{Option("iterations")}\t100\t1");
+        }
         var report = new { version = "fixture", git_revision = "fixture-revision",
             logs = new[] { new { level = "implementation_not_yet_verified", message = "Fixture mechanic is experimental." } }, sim = new {
             options = new { iterations = Option("iterations"), threads = Option("threads"), confidence = 0.95, confidence_estimator = 1.96 },
