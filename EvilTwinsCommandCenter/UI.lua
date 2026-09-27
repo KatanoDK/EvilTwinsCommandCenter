@@ -22,6 +22,7 @@ end
 local function label(parent, text, size, color)
     local widget = parent:CreateFontString(nil, "OVERLAY", size or "GameFontNormal")
     widget:SetJustifyH("LEFT")
+    widget:SetWordWrap(false)
     widget:SetText(text or "")
     if color then widget:SetTextColor(unpack(color)) end
     return widget
@@ -32,6 +33,32 @@ local function button(parent, text, width, height, onClick)
     widget:SetSize(width, height or 25)
     widget:SetText(text)
     widget:SetScript("OnClick", onClick)
+    return widget
+end
+
+local function panel(parent, width, height)
+    local widget = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    widget:SetSize(width, height)
+    widget:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    widget:SetBackdropColor(0.065, 0.075, 0.095, 1)
+    widget:SetBackdropBorderColor(0.18, 0.2, 0.26, 1)
+    return widget
+end
+
+local function dropdown(parent, width, choices, setting, default)
+    local widget = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
+    widget:SetWidth(width)
+    widget:SetupMenu(function(_, root)
+        local values = type(choices) == "function" and choices() or choices
+        for _, choice in ipairs(values) do
+            root:CreateRadio(choice.text,
+                function(value) return (ET.db.settings[setting] or default) == value end,
+                function(value)
+                    ET.db.settings[setting] = value
+                    UI:RefreshRoster(true)
+                end, choice.value)
+        end
+    end)
     return widget
 end
 
@@ -315,7 +342,7 @@ end
 function UI:Create()
     if self.frame then return end
     local frame = CreateFrame("Frame", "EvilTwinsCCFrame", UIParent, "BackdropTemplate")
-    frame:SetSize(990, 680)
+    frame:SetSize(1050, 720)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("HIGH")
     ET:StyleWindow(frame)
@@ -330,78 +357,108 @@ function UI:Create()
     local title = label(frame, "EVIL TWINS  /  COMMAND CENTER", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 23, -20)
     local overview = button(frame, "Guild raid prep", 150, 25, function() UI:ShowOverview() end)
-    overview:SetPoint("TOPLEFT", 340, -18)
     self.overviewButton = overview
     local crafting = button(frame, "Crafting directory", 160, 25, function() UI:ShowCrafting() end)
-    crafting:SetPoint("TOPLEFT", 505, -18)
+    crafting:SetPoint("TOPRIGHT", -44, -18)
+    overview:SetPoint("RIGHT", crafting, "LEFT", -10, 0)
     self.craftingButton = crafting
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
 
-    local search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    search:SetSize(236, 26)
-    search:SetPoint("TOPLEFT", 29, -65)
+    local sidebar = panel(frame, 266, 610)
+    sidebar:SetPoint("TOPLEFT", 18, -62)
+    self.sidebar = sidebar
+    label(sidebar, "CHARACTERS", "GameFontNormal"):SetPoint("TOPLEFT", 14, -14)
+    local search = CreateFrame("EditBox", nil, sidebar, "InputBoxTemplate")
+    search:SetSize(228, 26)
+    search:SetPoint("TOPLEFT", 21, -60)
     search:SetAutoFocus(false)
     search:SetScript("OnEscapePressed", search.ClearFocus)
-    search:SetScript("OnTextChanged", function() UI:RefreshRoster() end)
+    search:SetScript("OnTextChanged", function() UI:RefreshRoster(true) end)
     self.search = search
-    local searchHint = label(frame, "Search characters", "GameFontHighlightSmall")
+    local searchHint = label(sidebar, "Search name, class or spec", "GameFontHighlightSmall")
     searchHint:SetPoint("BOTTOMLEFT", search, "TOPLEFT", 0, 2)
     self.searchHint = searchHint
 
-    local rosterScroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    rosterScroll:SetPoint("TOPLEFT", 23, -106)
-    rosterScroll:SetPoint("BOTTOMLEFT", 23, 43)
-    rosterScroll:SetWidth(256)
+    self.visibilityFilter = dropdown(sidebar, 116, {
+        { text = "All characters", value = "ALL" }, { text = "Online now", value = "ONLINE" },
+        { text = "With wishlist", value = "WISHLIST" },
+    }, "rosterVisibility", "ALL")
+    self.visibilityFilter:SetPoint("TOPLEFT", 14, -96)
+    self.classFilter = dropdown(sidebar, 116, function()
+        local choices = { { text = "Any class", value = "ALL" } }
+        for _, choice in ipairs(UI.rosterClasses or {}) do choices[#choices + 1] = choice end
+        return choices
+    end, "rosterClass", "ALL")
+    self.classFilter:SetPoint("TOPLEFT", 138, -96)
+    label(sidebar, "Sort", "GameFontHighlightSmall"):SetPoint("TOPLEFT", 14, -137)
+    self.sortFilter = dropdown(sidebar, 200, {
+        { text = "Name A–Z", value = "NAME" }, { text = "Highest item level", value = "ITEM_LEVEL" },
+        { text = "Latest snapshot", value = "RECENT" },
+    }, "rosterSort", "NAME")
+    self.sortFilter:SetPoint("TOPLEFT", 54, -129)
+    self.rosterCount = label(sidebar, "", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
+    self.rosterCount:SetPoint("TOPLEFT", 14, -166)
+    self.rosterCount:SetWidth(236)
+
+    local rosterScroll = CreateFrame("ScrollFrame", nil, sidebar, "UIPanelScrollFrameTemplate")
+    rosterScroll:SetPoint("TOPLEFT", 8, -190)
+    rosterScroll:SetPoint("BOTTOMRIGHT", -28, 14)
     local rosterChild = CreateFrame("Frame", nil, rosterScroll)
-    rosterChild:SetWidth(236)
+    rosterChild:SetWidth(230)
     rosterChild:SetHeight(1)
     rosterScroll:SetScrollChild(rosterChild)
     self.rosterScroll = rosterScroll
     self.rosterChild = rosterChild
-
-    local divider = frame:CreateTexture(nil, "ARTWORK")
-    divider:SetColorTexture(0.42, 0.35, 0.58, 0.7)
-    divider:SetSize(1, 555)
-    divider:SetPoint("TOPLEFT", 291, -53)
-    self.divider = divider
+    rosterScroll:HookScript("OnVerticalScroll", function() UI:RenderRoster() end)
+    self.rosterEmpty = label(sidebar, "No matching characters.", "GameFontHighlightSmall")
+    self.rosterEmpty:SetPoint("TOPLEFT", 18, -205)
+    self.rosterEmpty:SetWidth(222)
 
     local detailScroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    detailScroll:SetPoint("TOPLEFT", 307, -55)
-    detailScroll:SetPoint("BOTTOMRIGHT", -34, 44)
+    detailScroll:SetPoint("TOPLEFT", 302, -62)
+    detailScroll:SetPoint("BOTTOMRIGHT", -38, 48)
     self.detailScroll = detailScroll
     local detail = CreateFrame("Frame", nil, detailScroll)
-    detail:SetWidth(636)
-    detail:SetHeight(550)
+    detail:SetWidth(686)
+    detail:SetHeight(700)
     detailScroll:SetScrollChild(detail)
     self.detail = detail
 
-    local heading = label(detail, "Select a character", "GameFontNormalLarge")
-    heading:SetPoint("TOPLEFT", 6, -6)
+    local profilePanel = panel(detail, 686, 174)
+    profilePanel:SetPoint("TOPLEFT")
+    self.profilePanel = profilePanel
+
+    local heading = label(profilePanel, "Select a character", "GameFontNormalLarge")
+    heading:SetPoint("TOPLEFT", 16, -14)
+    heading:SetWidth(530)
     self.heading = heading
-    local summary = label(detail, "", "GameFontHighlight")
-    summary:SetPoint("TOPLEFT", 6, -35)
+    self.presence = label(profilePanel, "", "GameFontHighlightSmall")
+    self.presence:SetPoint("TOPRIGHT", -16, -18)
+    local summary = label(profilePanel, "", "GameFontHighlight")
+    summary:SetPoint("TOPLEFT", 16, -44)
     self.summary = summary
-    local timestamp = label(detail, "", "GameFontHighlightSmall")
-    timestamp:SetPoint("TOPLEFT", 6, -55)
+    local timestamp = label(profilePanel, "", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
+    timestamp:SetPoint("TOPLEFT", 16, -65)
+    timestamp:SetWidth(650)
     self.timestamp = timestamp
 
-    local talentButton = button(detail, "Copy talent build", 150, 25, function()
+    local talentButton = button(profilePanel, "Copy talent build", 160, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if snapshot and snapshot.talent ~= "" then UI:ShowCopy("Talent build: " .. snapshot.name, snapshot.talent) end
     end)
-    talentButton:SetPoint("TOPLEFT", 6, -77)
+    talentButton:SetPoint("TOPLEFT", 16, -94)
     self.talentButton = talentButton
-    local simcButton = button(detail, "View last SimC", 140, 25, function()
+    local simcButton = button(profilePanel, "View last SimC", 150, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         local entry = ET:GetCachedSimC(UI.selected, snapshot.guid)
         if entry then UI:ShowCopy("SimC: " .. UI.selected .. " (" .. date("%Y-%m-%d %H:%M", entry.updated) .. ")", entry.profile) end
     end)
-    simcButton:SetPoint("LEFT", talentButton, "RIGHT", 10, 0)
+    simcButton:SetPoint("LEFT", talentButton, "RIGHT", 8, 0)
     self.simcButton = simcButton
 
-    local refreshSimc = button(detail, "Request fresh", 140, 25, function()
+    local refreshSimc = button(profilePanel, "Request fresh", 150, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         if UI.selected == ET.key then
@@ -418,44 +475,50 @@ function UI:Create()
             ET:Print("That character is not currently available for requests.")
         end
     end)
-    refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 10, 0)
+    refreshSimc:SetPoint("LEFT", simcButton, "RIGHT", 8, 0)
     self.refreshSimcButton = refreshSimc
 
-    local bagButton = button(detail, "View bags", 125, 25, function()
+    local bagButton = button(profilePanel, "View bags", 125, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         local content = ET.Inventory:Format(UI.selected, snapshot.guid)
         if content then UI:ShowCopy("Bags: " .. UI.selected, content) end
     end)
-    bagButton:SetPoint("LEFT", refreshSimc, "RIGHT", 10, 0)
+    bagButton:SetPoint("LEFT", refreshSimc, "RIGHT", 8, 0)
     self.bagButton = bagButton
 
-    local prepButton = button(detail, "Raid prep report", 150, 25, function()
+    local prepButton = button(profilePanel, "Raid prep report", 160, 26, function()
         local snapshot = ET.db.characters[UI.selected]
         if not snapshot then return end
         local inventory = ET.Inventory:Get(UI.selected, snapshot.guid)
         UI:ShowCopy("Raid prep: " .. UI.selected, ET.RaidPrep:Report(snapshot, inventory))
     end)
-    prepButton:SetPoint("TOPLEFT", 6, -111)
+    prepButton:SetPoint("TOPLEFT", 16, -132)
     self.prepButton = prepButton
-    local prepSettings = button(detail, "Prep settings", 130, 25, function() UI:ShowPrepSettings() end)
-    prepSettings:SetPoint("LEFT", prepButton, "RIGHT", 10, 0)
+    local prepSettings = button(profilePanel, "Prep settings", 150, 26, function() UI:ShowPrepSettings() end)
+    prepSettings:SetPoint("LEFT", prepButton, "RIGHT", 8, 0)
     self.prepSettingsButton = prepSettings
 
-    local gearHeading = label(detail, "EQUIPPED GEAR", "GameFontNormal")
-    gearHeading:SetPoint("TOPLEFT", 6, -157)
+    local gearPanel = panel(detail, 686, 360)
+    gearPanel:SetPoint("TOPLEFT", 0, -186)
+    self.gearPanel = gearPanel
+    local gearHeading = label(gearPanel, "EQUIPPED GEAR", "GameFontNormal")
+    gearHeading:SetPoint("TOPLEFT", 16, -14)
     for index, slot in ipairs(ET.slots) do
         local column = (index - 1) >= 10 and 1 or 0
         local rowIndex = column == 0 and index - 1 or index - 11
-        local row = CreateFrame("Button", nil, detail)
-        row:SetSize(305, 25)
-        row:SetPoint("TOPLEFT", 6 + column * 312, -183 - rowIndex * 26)
-        row.slot = label(row, slot[2], "GameFontHighlightSmall")
-        row.slot:SetPoint("LEFT", 0, 0)
-        row.slot:SetWidth(82)
+        local row = CreateFrame("Button", nil, gearPanel)
+        row:SetSize(320, 29)
+        row:SetPoint("TOPLEFT", 16 + column * 334, -43 - rowIndex * 30)
+        local background = row:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        background:SetColorTexture(1, 1, 1, rowIndex % 2 == 0 and 0.035 or 0)
+        row.slot = label(row, slot[2], "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
+        row.slot:SetPoint("LEFT", 7, 0)
+        row.slot:SetWidth(76)
         row.item = label(row, "", "GameFontNormalSmall")
-        row.item:SetPoint("LEFT", 83, 0)
-        row.item:SetWidth(220)
+        row.item:SetPoint("LEFT", 85, 0)
+        row.item:SetWidth(228)
         row:SetScript("OnEnter", function(self)
             if not self.link or self.link == "" then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -471,26 +534,29 @@ function UI:Create()
         self.gearRows[index] = row
     end
 
-    local wishHeading = label(detail, "GEAR WISHLIST", "GameFontNormal")
-    wishHeading:SetPoint("TOPLEFT", 6, -463)
-    local emptyWish = label(detail, "No items added yet.", "GameFontHighlightSmall")
-    emptyWish:SetPoint("TOPLEFT", 14, -528)
-    emptyWish:SetWidth(580)
+    local wishPanel = panel(detail, 686, 130)
+    wishPanel:SetPoint("TOPLEFT", 0, -558)
+    self.wishPanel = wishPanel
+    local wishHeading = label(wishPanel, "GEAR WISHLIST", "GameFontNormal")
+    wishHeading:SetPoint("TOPLEFT", 16, -14)
+    local emptyWish = label(wishPanel, "No items added yet.", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
+    emptyWish:SetPoint("TOPLEFT", 16, -98)
+    emptyWish:SetWidth(650)
     self.emptyWish = emptyWish
 
-    local itemInput = CreateFrame("EditBox", nil, detail, "InputBoxTemplate")
-    itemInput:SetSize(188, 24)
-    itemInput:SetPoint("TOPLEFT", 14, -492)
+    local itemInput = CreateFrame("EditBox", nil, wishPanel, "InputBoxTemplate")
+    itemInput:SetSize(209, 24)
+    itemInput:SetPoint("TOPLEFT", 24, -61)
     itemInput:SetAutoFocus(false)
     itemInput:SetScript("OnEscapePressed", itemInput.ClearFocus)
     self.itemInput = itemInput
-    local noteInput = CreateFrame("EditBox", nil, detail, "InputBoxTemplate")
-    noteInput:SetSize(245, 24)
+    local noteInput = CreateFrame("EditBox", nil, wishPanel, "InputBoxTemplate")
+    noteInput:SetSize(272, 24)
     noteInput:SetPoint("LEFT", itemInput, "RIGHT", 18, 0)
     noteInput:SetAutoFocus(false)
     noteInput:SetScript("OnEscapePressed", noteInput.ClearFocus)
     self.noteInput = noteInput
-    local add = button(detail, "Add item", 90, 25, function()
+    local add = button(wishPanel, "Add item", 105, 25, function()
         local ok, err = ET:AddWish(itemInput:GetText(), noteInput:GetText())
         if not ok then ET:Print(err); return end
         itemInput:SetText("")
@@ -499,19 +565,22 @@ function UI:Create()
     end)
     add:SetPoint("LEFT", noteInput, "RIGHT", 12, 0)
     self.addButton = add
-    local inputHint = label(detail, "Item link or ID", "GameFontHighlightSmall")
+    local inputHint = label(wishPanel, "Item link or ID", "GameFontHighlightSmall")
     inputHint:SetPoint("BOTTOMLEFT", itemInput, "TOPLEFT", 0, 1)
     self.inputHint = inputHint
+    local noteHint = label(wishPanel, "Note (optional)", "GameFontHighlightSmall")
+    noteHint:SetPoint("BOTTOMLEFT", noteInput, "TOPLEFT", 0, 1)
+    self.noteHint = noteHint
 
     for index = 1, 20 do
-        local row = CreateFrame("Button", nil, detail)
-        row:SetSize(605, 24)
+        local row = CreateFrame("Button", nil, wishPanel)
+        row:SetSize(650, 28)
         row.item = label(row, "", "GameFontNormalSmall")
         row.item:SetPoint("LEFT", 0, 0)
         row.item:SetWidth(250)
         row.note = label(row, "", "GameFontHighlightSmall")
         row.note:SetPoint("LEFT", 255, 0)
-        row.note:SetWidth(265)
+        row.note:SetWidth(310)
         row:SetScript("OnEnter", function(self)
             if not self.itemID then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -546,45 +615,78 @@ function UI:Create()
     frame:SetScript("OnShow", function() UI:Refresh() end)
 end
 
-function UI:RefreshRoster()
-    if not self.frame then return end
-    local search = self.search:GetText():lower()
-    local keys = {}
-    for key, snapshot in pairs(ET.db.characters) do
-        if type(snapshot) == "table" and key:lower():find(search, 1, true)
-            and (key == ET.key or ET:CanUseLeaderTools()) then
-            keys[#keys + 1] = key
-        end
-    end
-    table.sort(keys, function(a, b) return a:lower() < b:lower() end)
-    if not self.selected or not ET.db.characters[self.selected] then self.selected = ET.key end
-    for index, key in ipairs(keys) do
-        local row = self.rosterRows[index]
+function UI:RenderRoster()
+    if not self.rosterEntries then return end
+    local entries, rowHeight = self.rosterEntries, 46
+    local first, last = ET.Roster:VisibleRange(#entries, self.rosterScroll:GetVerticalScroll(),
+        self.rosterScroll:GetHeight(), rowHeight)
+    local used = 0
+    for index = first, last do
+        used = used + 1
+        local row = self.rosterRows[used]
         if not row then
             row = CreateFrame("Button", nil, self.rosterChild)
-            row:SetSize(232, 36)
+            row:SetSize(230, 44)
+            row.background = row:CreateTexture(nil, "BACKGROUND")
+            row.background:SetAllPoints()
+            row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
             row.name = label(row, "", "GameFontNormal")
-            row.name:SetPoint("TOPLEFT", 5, -3)
-            row.name:SetWidth(220)
-            row.description = label(row, "", "GameFontHighlightSmall")
-            row.description:SetPoint("TOPLEFT", 5, -20)
-            row.description:SetWidth(220)
+            row.name:SetPoint("TOPLEFT", 10, -7)
+            row.name:SetWidth(198)
+            row.dot = row:CreateTexture(nil, "ARTWORK")
+            row.dot:SetSize(5, 5)
+            row.dot:SetPoint("TOPRIGHT", -8, -11)
+            row.description = label(row, "", "GameFontHighlightSmall", { 0.65, 0.7, 0.8 })
+            row.description:SetPoint("TOPLEFT", 10, -25)
+            row.description:SetWidth(210)
             row:SetScript("OnClick", function(self)
+                if UI.selected ~= self.key then UI.detailScroll:SetVerticalScroll(0) end
                 UI.selected = self.key
                 UI:Refresh()
             end)
-            self.rosterRows[index] = row
+            row:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine(self.key)
+                GameTooltip:AddLine(self.online == true and "Online now"
+                    or self.online == false and "Offline — showing saved data" or "Online status unavailable", 0.7, 0.75, 0.85)
+                GameTooltip:Show()
+            end)
+            row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            self.rosterRows[used] = row
         end
-        local snapshot = ET.db.characters[key]
-        row.key = key
-        row:SetPoint("TOPLEFT", 0, -((index - 1) * 38))
-        row.name:SetText(snapshot.name .. (key == ET.key and "  (you)" or ""))
+        local entry = entries[index]
+        local key, snapshot = entry.key, entry.snapshot
+        row.key, row.online = key, entry.online
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", 0, -((index - 1) * rowHeight))
+        row.name:SetText(snapshot.name .. (key == ET.key and " (you)" or ""))
         row.description:SetText((snapshot.spec or "") .. "  •  " .. tostring(snapshot.itemLevel or 0) .. " ilvl")
-        row.name:SetTextColor(key == self.selected and 1 or 0.75, key == self.selected and 0.8 or 0.7, 1)
+        local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[snapshot.class]
+        row.name:SetTextColor(color and color.r or 0.8, color and color.g or 0.75, color and color.b or 1)
+        row.background:SetColorTexture(0.35, 0.26, 0.55, key == self.selected and 0.65 or (index % 2 == 0 and 0.08 or 0))
+        if entry.online == true then row.dot:SetColorTexture(0.35, 0.9, 0.45, 1)
+        elseif entry.online == false then row.dot:SetColorTexture(0.4, 0.45, 0.52, 1)
+        else row.dot:SetColorTexture(0.85, 0.65, 0.3, 1) end
         row:Show()
     end
-    for index = #keys + 1, #self.rosterRows do self.rosterRows[index]:Hide() end
-    self.rosterChild:SetHeight(math.max(1, #keys * 38))
+    for index = used + 1, #self.rosterRows do self.rosterRows[index]:Hide() end
+end
+
+function UI:RefreshRoster(resetScroll)
+    if not self.frame then return end
+    local settings = ET.db.settings
+    local entries, total, classes = ET.Roster:Build(self.search:GetText(), settings.rosterVisibility,
+        settings.rosterClass, settings.rosterSort)
+    self.rosterEntries, self.rosterClasses = entries, classes
+    self.classFilter:GenerateMenu()
+    self.rosterCount:SetText(#entries .. " matching  /  " .. total .. " shared characters")
+    self.rosterEmpty:SetShown(#entries == 0)
+    if not self.selected or not ET.db.characters[self.selected] then self.selected = ET.key end
+    local height = math.max(1, #entries * 46)
+    self.rosterChild:SetHeight(height)
+    local offset = resetScroll and 0 or self.rosterScroll:GetVerticalScroll()
+    self.rosterScroll:SetVerticalScroll(math.min(offset, math.max(0, height - self.rosterScroll:GetHeight())))
+    self:RenderRoster()
 end
 
 function UI:RefreshDetail()
@@ -594,6 +696,9 @@ function UI:RefreshDetail()
     if not snapshot then return end
     local isSelf = self.selected == ET.key
     self.heading:SetText(snapshot.name .. "-" .. snapshot.realm)
+    local online = ET.Roster:Presence()[self.selected:lower():gsub("%s+", "")]
+    self.presence:SetText(online == true and "Online" or online == false and "Offline" or "Status unknown")
+    self.presence:SetTextColor(online == true and 0.35 or 0.65, online == true and 0.9 or 0.7, online == true and 0.45 or 0.8)
     self.summary:SetText((snapshot.spec or "") .. "  •  Level " .. snapshot.level .. "  •  " .. snapshot.itemLevel .. " equipped ilvl")
     self.talentButton:SetEnabled(snapshot.talent ~= "")
     local cached = ET:GetCachedSimC(self.selected, snapshot.guid)
@@ -616,9 +721,10 @@ function UI:RefreshDetail()
     self.noteInput:SetShown(isSelf)
     self.addButton:SetShown(isSelf)
     self.inputHint:SetShown(isSelf)
+    self.noteHint:SetShown(isSelf)
     local wishlist = snapshot.wishlist or {}
     self.emptyWish:ClearAllPoints()
-    self.emptyWish:SetPoint("TOPLEFT", 14, -(isSelf and 528 or 496))
+    self.emptyWish:SetPoint("TOPLEFT", 16, -(isSelf and 98 or 46))
     self.emptyWish:SetShown(#wishlist == 0)
     for index, row in ipairs(self.wishRows) do
         local wish = wishlist[index]
@@ -628,13 +734,16 @@ function UI:RefreshDetail()
             row.item:SetText(itemName or ("Item #" .. wish.id))
             row.note:SetText(wish.note or "")
             row.remove:SetShown(isSelf)
-            row:SetPoint("TOPLEFT", 6, -(isSelf and 528 or 496) - (index - 1) * 25)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", 16, -(isSelf and 98 or 46) - (index - 1) * 30)
             row:Show()
         else
             row:Hide()
         end
     end
-    self.detail:SetHeight(math.max(590, (isSelf and 548 or 516) + #wishlist * 25))
+    local wishHeight = (isSelf and 98 or 46) + math.max(1, #wishlist) * 30 + 16
+    self.wishPanel:SetHeight(wishHeight)
+    self.detail:SetHeight(558 + wishHeight + 12)
 end
 
 function UI:Refresh()
@@ -642,14 +751,9 @@ function UI:Refresh()
     local isLeader = ET:CanUseLeaderTools()
     self.overviewButton:SetShown(isLeader)
     self.prepSettingsButton:SetShown(isLeader)
-    self.craftingButton:ClearAllPoints()
-    self.craftingButton:SetPoint("TOPLEFT", isLeader and 505 or 340, -18)
-    self.frame:SetWidth(isLeader and 990 or 650)
-    self.frame:SetHeight(isLeader and 680 or 135)
-    self.search:SetShown(isLeader)
-    self.searchHint:SetShown(isLeader)
-    self.rosterScroll:SetShown(isLeader)
-    self.divider:SetShown(isLeader)
+    self.frame:SetWidth(isLeader and 1050 or 650)
+    self.frame:SetHeight(isLeader and 720 or 135)
+    self.sidebar:SetShown(isLeader)
     self.detailScroll:SetShown(isLeader)
     self.footer:SetShown(isLeader)
     self.memberMessage:SetShown(not isLeader)

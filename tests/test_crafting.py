@@ -24,4 +24,12 @@ for name in ("Protocol", "Crafting", "Comm", "SimC"):
     lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
 lua.execute((root / "tests" / "crafting_spec.lua").read_text(encoding="utf-8"))
 lua.execute((root / "tests" / "simc_spec.lua").read_text(encoding="utf-8"))
-print("All Lua files compile; crafting transfers, ranks, SimC compatibility, and native exports passed.")
+ui_lua = LuaRuntime(unpack_returned_tuples=True)
+ui_lua.execute((root / "tests" / "roster_spec.lua").read_text(encoding="utf-8"))
+for name in ("Roster", "UI"):
+    source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
+    ui_lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
+    if name == "Roster":
+        ui_lua.execute("RunRosterChecks()")
+ui_lua.execute("RunUIChecks()")
+print("All Lua files compile; crafting, ranks, SimC, roster filters, and large-roster UI checks passed.")

@@ -14,5 +14,6 @@ Comm.lua
 Inventory.lua
 Crafting.lua
 RaidPrep.lua
+Roster.lua
 UI.lua
 CraftingUI.lua
