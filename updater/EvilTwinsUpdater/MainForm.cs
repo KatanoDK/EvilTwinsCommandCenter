@@ -47,8 +47,8 @@ internal sealed class MainForm : Form
     public MainForm(bool preview = false)
     {
         Text = "Evil Twins — Addon Updater";
-        ClientSize = new Size(720, 620);
-        MinimumSize = new Size(740, 600);
+        ClientSize = new Size(900, 800);
+        MinimumSize = new Size(840, 720);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 10);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 2, RowCount = 7 };

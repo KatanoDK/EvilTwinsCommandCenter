@@ -45,6 +45,7 @@ internal static class SimulationTests
         var other = await runner.RunAsync(engine, Profile, new SimulationOptions(1000, Mode: SimulationMode.FullSpeed), runs);
         Assert(other.Directory != result.Directory && File.Exists(result.HtmlPath), "New runs must not overwrite old results.");
         Assert(other.Threads == Environment.ProcessorCount, "Full speed must use all available CPU threads.");
+        await BagComparisonTests.Run(runner, engine, runs);
         await RejectAsync(() => runner.RunAsync(engine, Profile.Replace("Fixture", "FixtureFail"), new SimulationOptions(), runs),
             error => error.Message.Contains("code 40") && error.Message.Contains("Unsupported specialization"), "Engine error details");
         await RejectAsync(() => runner.RunAsync(engine, Profile.Replace("Fixture", "FixtureInvalid"), new SimulationOptions(), runs),
@@ -78,11 +79,21 @@ internal static class SimulationTests
         if (input.Contains("FixtureFail")) { Console.Error.WriteLine("Unsupported specialization fixture."); Environment.ExitCode = 40; return; }
         if (input.Contains("FixtureInvalid")) { File.WriteAllText("report.json", "{}"); return; }
         Assert(args.Contains("item_db_source=local") && args.Contains("fight_style=Patchwerk")
-            && args.Contains("target_error=0") && args.Contains("json2=report.json"), "Expected controlled simulation settings.");
+            && args.Contains("target_error=0") && args.Contains("json2=report.json")
+            && args.Contains("progressbar_type=1"), "Expected controlled simulation settings and parseable progress output.");
         int Option(string key) => int.Parse(args.Single(arg => arg.StartsWith(key + "="))[(key.Length + 1)..]);
+        var sets = input.Split('\n').Where(line => line.StartsWith("profileset.", StringComparison.Ordinal))
+            .GroupBy(line => line[11..line.IndexOf('=')].TrimEnd('+'))
+            .Select(group => new { name = input.Contains("FixtureMismatch") ? "unknown" : group.Key,
+                mean = 12345.0 + group.Count() * 150, mean_error = 20.0, iterations = Option("iterations") }).ToArray();
+        if (input.Contains("FixtureMissing")) sets = [];
+        Console.WriteLine($"Baseline\t1\t{sets.Length + 1}\t{Option("iterations")}\t{Option("iterations")}\t100\t1");
+        for (var index = 0; index < sets.Length; index++)
+            Console.WriteLine($"Profileset\t{sets[index].name}\t{index + 2}\t{sets.Length + 1}\t{Option("iterations")}\t{Option("iterations")}\t100\t1");
         var report = new { version = "fixture", git_revision = "fixture-revision",
             logs = new[] { new { level = "implementation_not_yet_verified", message = "Fixture mechanic is experimental." } }, sim = new {
             options = new { iterations = Option("iterations"), threads = Option("threads"), confidence = 0.95, confidence_estimator = 1.96 },
+            profilesets = new { metric = "Damage per Second", results = sets },
             players = new[] { new { name = "Fixture", specialization = "unholy", collected_data = new { dps = new { mean = 12345.0, mean_std_dev = 10.0 } } } } } };
         File.WriteAllText("report.json", JsonSerializer.Serialize(report));
         File.WriteAllText("report.html", "<html><body>Fixture report</body></html>");
@@ -93,10 +104,18 @@ internal static class SimulationTests
         var runner = new LocalSimulator();
         foreach (var mode in new[] { SimulationMode.Background, SimulationMode.FullSpeed })
         {
-            var result = await runner.RunAsync(engine, File.ReadAllText(profilePath), new SimulationOptions(1000, Mode: mode), outputRoot);
+            var profile = File.ReadAllText(profilePath);
+            var selected = BagComparisons.ReadItems(profile).Where(item => item.CanCompare).Select(item => item.Key).ToArray();
+            var tracker = new SimulationProgress(BagComparisons.CreateSets(profile, selected).Count + 1);
+            var result = await runner.RunAsync(engine, profile, new SimulationOptions(1000, Mode: mode), outputRoot,
+                new InlineProgress(tracker.Append), selectedBagItems: selected);
             Assert(result.Dps > 0 && result.Error.HasValue && File.Exists(result.HtmlPath), "Live engine did not produce a usable result.");
+            Assert(tracker.HasProgress && tracker.Fraction == 1 && tracker.CompletedRuns == tracker.TotalRuns, "Live engine progress must reach all completed runs.");
+            Assert(result.Comparisons.Count == tracker.TotalRuns - 1, "All live gear combinations must be returned.");
             Console.WriteLine($"{mode}: {result.Threads} threads, 1000 iterations, {result.Elapsed.TotalSeconds:F2}s, {result.Dps:F0} DPS ± {result.Error:F0}; engine {result.EngineVersion} {result.EngineRevision}");
             Console.WriteLine("Run files: " + result.Directory);
+            foreach (var comparison in result.Comparisons)
+                Console.WriteLine($"{comparison.Set.Changes.Count} change(s), {comparison.Set.Slots}: {comparison.Gain:+0;-0;0} DPS ± {comparison.GainError:F0}");
         }
     }
 

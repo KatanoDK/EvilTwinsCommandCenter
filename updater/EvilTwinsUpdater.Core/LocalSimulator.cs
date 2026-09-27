@@ -16,7 +16,10 @@ public sealed record SimulationOptions(int Iterations = 5000, int Duration = 300
 }
 public sealed record SimulationResult(string Name, string Specialization, double Dps, double? Error,
     double Confidence, int Iterations, int Threads, string EngineVersion, string EngineRevision,
-    TimeSpan Elapsed, string Directory, string HtmlPath, string JsonPath, IReadOnlyList<string> Warnings);
+    TimeSpan Elapsed, string Directory, string HtmlPath, string JsonPath, IReadOnlyList<string> Warnings)
+{
+    public IReadOnlyList<GearComparison> Comparisons { get; init; } = [];
+}
 
 public sealed class LocalSimulator
 {
@@ -75,10 +78,12 @@ public sealed class LocalSimulator
     }
 
     public async Task<SimulationResult> RunAsync(string engine, string profile, SimulationOptions options,
-        string outputRoot, IProgress<string>? progress = null, CancellationToken cancellation = default)
+        string outputRoot, IProgress<string>? progress = null, CancellationToken cancellation = default,
+        IReadOnlyCollection<int>? selectedBagItems = null)
     {
         engine = ValidateEngine(engine);
-        profile = PrepareProfile(profile);
+        var swaps = selectedBagItems is { Count: > 0 } ? BagComparisons.CreateSets(profile, selectedBagItems) : [];
+        profile = BagComparisons.AppendSets(PrepareProfile(profile), swaps);
         if (options.Iterations is < 100 or > 100_000 || options.Duration is < 30 or > 900
             || options.Targets is < 1 or > 20 || !Enum.IsDefined(options.Mode))
             throw new InvalidOperationException("Choose valid simulation settings.");
@@ -95,10 +100,12 @@ public sealed class LocalSimulator
         start.ArgumentList.Add("input.simc");
         foreach (var arg in new[] { "json2=report.json", "html=report.html", "report_details=1", "hosted_html=0",
             "fight_style=Patchwerk", "optimal_raid=1", "fixed_time=1", "vary_combat_length=0.2", "target_error=0", "confidence=0.95",
+            "progressbar_type=1",
             "item_db_source=local", "calculate_scale_factors=0", $"iterations={options.Iterations}",
             $"max_time={options.Duration}", $"desired_targets={options.Targets}", $"threads={options.Threads}",
             options.Mode == SimulationMode.Background ? "process_priority=below_normal" : "process_priority=normal" })
             start.ArgumentList.Add(arg);
+        if (swaps.Count > 0) start.ArgumentList.Add("profileset_metric=dps");
         using var process = new Process { StartInfo = start };
         var elapsed = Stopwatch.StartNew();
         progress?.Report($"Starting {options.Threads} CPU thread(s)…");
@@ -134,8 +141,16 @@ public sealed class LocalSimulator
         var jsonPath = Path.Combine(run, "report.json");
         if (!File.Exists(jsonPath) || new FileInfo(jsonPath).Length > 50_000_000)
             throw new InvalidDataException($"SimulationCraft did not produce a readable result. Run files: {run}");
-        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath, cancellation));
-        return ParseResult(json.RootElement, run, elapsed.Elapsed);
+        try
+        {
+            using var json = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath, cancellation));
+            var baseline = ParseResult(json.RootElement, run, elapsed.Elapsed);
+            return baseline with { Comparisons = BagComparisons.ReadResults(json.RootElement, baseline, swaps) };
+        }
+        catch (Exception error) when (error is JsonException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new InvalidDataException($"{error.Message}\nRun files: {run}", error);
+        }
     }
 
     private static async Task ReadOutputAsync(StreamReader reader, Action<string> record)
