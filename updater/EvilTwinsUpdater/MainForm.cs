@@ -403,7 +403,17 @@ internal sealed class MainForm : Form
         using var picker = new OpenFileDialog { Filter = "Addon ZIP (*.zip)|*.zip", Title = "Choose an Evil Twins addon build" };
         if (picker.ShowDialog(this) != DialogResult.OK) return;
         try { SetBusy(true); AddonInstaller.Install(folder.Text, picker.FileName); ReportInstallation("Test ZIP installed successfully."); }
-        catch (Exception error) { status.Text = error.Message; }
+        catch (Exception error)
+        {
+            status.Text = error.Message;
+            try
+            {
+                Directory.CreateDirectory(stateDirectory);
+                File.WriteAllText(Path.Combine(stateDirectory, "last-install-error.txt"),
+                    $"Time: {DateTimeOffset.Now:O}\nZIP: {picker.FileName}\nRetail: {folder.Text}\n{error}\n");
+            }
+            catch { /* Keep the original installation error visible if the log cannot be written. */ }
+        }
         finally { SetBusy(false); RefreshBuild(); }
     }
 

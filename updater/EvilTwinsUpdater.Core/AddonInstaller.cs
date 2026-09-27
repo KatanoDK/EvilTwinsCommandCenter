@@ -68,6 +68,10 @@ public static class AddonInstaller
     {
         using var archive = ZipFile.OpenRead(zipFile);
         if (archive.Entries.Count is < 2 or > 256) throw new InvalidDataException("Unexpected addon archive size.");
+        string[] required = ["build.json", AddonName + ".toc", "Core.lua"];
+        var missing = required.Where(file => archive.GetEntry(AddonName + "/" + file) == null).ToArray();
+        if (missing.Length > 0)
+            throw new InvalidDataException($"Selected ZIP ({Path.GetFileName(zipFile)}) is missing: {string.Join(", ", missing)}. Choose a packaged addon ZIP.");
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         long total = 0;
         foreach (var entry in archive.Entries)
@@ -94,8 +98,9 @@ public static class AddonInstaller
         }
         var buildPath = Path.Combine(stage, "build.json");
         var tocPath = Path.Combine(stage, AddonName + ".toc");
-        if (!File.Exists(buildPath) || !File.Exists(tocPath) || !File.Exists(Path.Combine(stage, "Core.lua")))
-            throw new InvalidDataException("Archive is missing its manifest, TOC, or Core.lua.");
+        missing = required.Where(file => !File.Exists(Path.Combine(stage, file))).ToArray();
+        if (missing.Length > 0)
+            throw new IOException($"The ZIP contains all required files, but these are unavailable after extraction: {string.Join(", ", missing)}. Destination: {stage}. Your existing addon was preserved.");
         var build = JsonSerializer.Deserialize<BuildInfo>(File.ReadAllText(buildPath))
             ?? throw new InvalidDataException("Missing build information.");
         if (build.Addon != AddonName || build.Dirty || !Regex.IsMatch(build.Commit ?? "", "^[0-9a-f]{40}$")

@@ -61,12 +61,13 @@ Directory.CreateDirectory(other);
 File.WriteAllText(Path.Combine(other, "Other.lua"), "keep me too");
 var firstCommit = new string('a', 40);
 var secondCommit = new string('b', 40);
-string Zip(string filename, string commit, string? extra = null, bool dirty = false, bool missingFile = false)
+string Zip(string filename, string commit, string? extra = null, bool dirty = false, bool missingFile = false, string? omitted = null)
 {
     var path = Path.Combine(testRoot, filename);
     using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
     void Add(string name, string content)
     {
+        if (name == "EvilTwinsCommandCenter/" + omitted) return;
         using var writer = new StreamWriter(archive.CreateEntry(name).Open());
         writer.Write(content);
     }
@@ -122,6 +123,19 @@ try
         Reject(() => AddonInstaller.Install(retail, Zip(filename, secondCommit, entry)), filename);
     Reject(() => AddonInstaller.Install(retail, Zip("dirty.zip", secondCommit, dirty: true)), "Dirty build");
     Reject(() => AddonInstaller.Install(retail, Zip("missing.zip", secondCommit, missingFile: true)), "Missing TOC file");
+    foreach (var required in new[] { "build.json", "EvilTwinsCommandCenter.toc", "Core.lua" })
+    {
+        try
+        {
+            AddonInstaller.Install(retail, Zip("missing-" + required + ".zip", secondCommit, omitted: required));
+            throw new Exception("Incomplete package was accepted.");
+        }
+        catch (InvalidDataException error)
+        {
+            Assert(error.Message.Contains("Selected ZIP") && error.Message.Contains(required), "Missing-file error must identify the selected ZIP and exact missing file.");
+        }
+        Assert(AddonInstaller.InstalledBuild(retail)?.Commit == firstCommit, "Incomplete package changed the installed addon.");
+    }
     Reject(() => AddonInstaller.Install(retail, second, firstCommit), "Wrong published commit");
     Assert(AddonInstaller.InstalledBuild(retail)?.Commit == firstCommit, "Rejected update changed installed build.");
     var bytes = File.ReadAllBytes(second);
