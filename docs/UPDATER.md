@@ -46,3 +46,9 @@ Velopack produces `EvilTwinsUpdater-win-Setup.exe`; the release publisher names 
 Tests use fake Retail folders and Velopack test installation directories. They cover addon installs and rollback, locked-file failures, preservation of other addons and saved data, archive and commit validation, public feeds, checksums, app version ordering, staged downloads, and corrupt app packages. They do not install on the real PC, exercise an actual installed app restart, or replace in-game testing.
 
 `.github/workflows/build-release.yml` runs Lua and .NET checks on every push to `master`, publishes changed app source with `scripts/publish_updater.ps1`, and publishes the addon separately as `build-<commit SHA>`. Both remain development releases. The app reads addon build releases rather than GitHub's latest stable release endpoint.
+
+To verify the published app feed and stage its real package in an isolated test directory without installing or restarting anything:
+
+```powershell
+dotnet run --project updater/EvilTwinsUpdater.Tests -c Release -- --verify-app-feed .test-work/published-app-tests
+```

@@ -6,6 +6,29 @@ using Velopack.Locators;
 
 internal static class AppUpdateTests
 {
+    public static async Task VerifyPublished(string workspace)
+    {
+        var root = Path.Combine(Path.GetFullPath(workspace), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var manager = new UpdateManager(new Velopack.Sources.SimpleWebSource(
+                "https://github.com/KatanoDK/EvilTwinsCommandCenter/releases/download/updater/"),
+                null, new TestVelopackLocator("EvilTwinsUpdater", "0.1.0-dev.0", root));
+            var update = await manager.CheckForUpdatesAsync();
+            Assert(update != null, "The published app feed has no update.");
+            await manager.DownloadUpdatesAsync(update!);
+            Assert(manager.UpdatePendingRestart?.Version == update!.TargetFullRelease.Version,
+                "The published app package could not be prepared.");
+            Console.WriteLine($"PASS: public app feed and real package verified and staged: {update.TargetFullRelease.Version}. No app installed or restarted.");
+        }
+        finally
+        {
+            // root is a generated child of the explicitly selected test workspace.
+            Directory.Delete(root, true);
+        }
+    }
+
     public static async Task Run(string testRoot)
     {
         // This locator prepares updates in the fake installation; it never replaces the running app.

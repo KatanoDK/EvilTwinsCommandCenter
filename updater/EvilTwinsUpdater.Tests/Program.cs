@@ -5,6 +5,12 @@ using System.Text;
 using System.Text.Json;
 using EvilTwinsUpdater.Core;
 
+if (args.Length == 2 && args[0] == "--verify-app-feed")
+{
+    await AppUpdateTests.VerifyPublished(args[1]);
+    return;
+}
+
 if (args.Length is 2 or 3 && args[0] == "--verify-report")
 {
     using var reports = new DroptimizerClient();
