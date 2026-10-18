@@ -120,7 +120,7 @@ function Loot:Items(source, boss, difficulty, forSpec)
             local info = C_EncounterJournal.GetLootInfoByIndex(index)
             if info and info.itemID and not seen[info.itemID] then
                 seen[info.itemID] = true
-                local name = info.name or GetItemInfo(info.itemID)
+                local name = info.name or C_Item.GetItemInfo(info.itemID)
                 if not name then
                     pending = true
                     if C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(info.itemID) end

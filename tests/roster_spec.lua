@@ -17,7 +17,8 @@ function ET:CanUseLeaderTools() return leader end
 function ET:GetCachedSimC() return nil end
 ET.Inventory = { Get = function() return nil end }
 function date() return "09/27 12:00" end
-function GetItemInfo() return nil end
+GetItemInfo = nil
+C_Item = { GetItemInfo = function() return nil end }
 local function snapshot(name, class, spec, ilvl, updated, wishlist)
     return { name = name, realm = "Realm", class = class, spec = spec, itemLevel = ilvl,
         updated = updated, wishlist = wishlist or {}, level = 90, gear = {}, talent = "", guid = name }
@@ -111,6 +112,23 @@ function RunUIChecks()
     end
     leader = true
     UI.rosterScroll.height = 406
+    local refreshPrep = UI.RefreshPrep
+    UI.RefreshPrep = function() error("Item data lookup failed") end
+    local ok = pcall(function() UI:Refresh() end)
+    assert(not ok and UI.tabPanels.prep.shown and not UI.tabPanels.build.shown
+        and not UI.tabPanels.wishlist.shown, "A first-open data error must not expose stacked tabs")
+    assert(UI.tabButtons.prep.accent.shown and not UI.tabButtons.build.accent.shown
+        and not UI.tabButtons.wishlist.accent.shown, "Tab selection must be styled before data is loaded")
+    assert(not UI.upgradeRows[1].shown and not UI.wishRows[1].shown,
+        "Unpopulated rows must start hidden")
+    UI:SetTab("build")
+    assert(UI.tabPanels.build.shown and not UI.tabPanels.prep.shown,
+        "A readiness error must not prevent switching to the SimC tab")
+    UI:SetTab("wishlist")
+    assert(UI.tabPanels.wishlist.shown and not UI.tabPanels.build.shown,
+        "A readiness error must not prevent switching to the wishlist tab")
+    UI.RefreshPrep = refreshPrep
+    UI:SetTab("prep")
     UI:Refresh()
     assert(UI.activeTab == "prep" and UI.tabPanels.prep.shown and not UI.tabPanels.build.shown)
     assert(not UI.prepSettingsButton and not UI.gearPanel, "Settings and the full equipment panel must be removed")
@@ -142,6 +160,10 @@ function RunUIChecks()
     UI.selected = "Alpha-Realm"
     UI:RefreshDetail()
     assert(not UI.itemInput.shown and not UI.noteHint.shown and UI.wishRows[1].shown and not UI.wishRows[1].remove.shown)
+    C_Item.GetItemInfo = function(id) return id == 123 and "Modern item name" or nil end
+    UI:RefreshDetail()
+    assert(UI.wishRows[1].item.text == "Modern item name", "Wishlist names must use the Retail item API")
+    C_Item.GetItemInfo = function() return nil end
     UI:SetTab("build")
     assert(UI.tabPanels.build.shown and not UI.tabPanels.wishlist.shown and UI.activeTab == "build")
     UI:SetTab("bags")
@@ -205,7 +227,8 @@ function RunUpgradeUIChecks()
     report.items[2].difficulty = "raid-heroic"
     local oldItems = C_Item
     local iconRequests = 0
-    C_Item = { GetItemIconByID = function(id) return id == 1001 and 987654 or nil end,
+    C_Item = { GetItemInfo = oldItems.GetItemInfo,
+        GetItemIconByID = function(id) return id == 1001 and 987654 or nil end,
         RequestLoadItemDataByID = function() iconRequests = iconRequests + 1 end }
     UI:Refresh()
     UI:SetTab("wishlist")
@@ -233,7 +256,7 @@ function RunUpgradeUIChecks()
     assert(not UI.upgradeRows[1].shown, "Returning to a character must preserve its hidden report selection")
     UI.upgradeSelector.choices[2].pick(report.id)
     assert(UI.upgradeRows[1].shown and UI.upgradeLinkButton.enabled, "A saved report can be selected again")
-    C_Item = { GetItemIconByID = function() return 123456 end }
+    C_Item = { GetItemInfo = oldItems.GetItemInfo, GetItemIconByID = function() return 123456 end }
     UI:RefreshDetail()
     assert(UI.upgradeRows[2].icon.texture == 123456, "Newly cached icons must update on refresh")
     C_Item = oldItems

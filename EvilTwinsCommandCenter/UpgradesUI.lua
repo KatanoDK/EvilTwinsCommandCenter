@@ -127,6 +127,7 @@ function UI:CreateUpgradesPanel()
     self.upgradeSummary:SetHeight(56)
     for index = 1, 100 do
         local row = CreateFrame("Button", nil, parent)
+        row:Hide()
         row:SetSize(650, 46)
         row:SetPoint("TOPLEFT", 16, -170 - (index - 1) * 48)
         local background = row:CreateTexture(nil, "BACKGROUND")

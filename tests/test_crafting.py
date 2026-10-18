@@ -43,6 +43,14 @@ for name in ("Consumables", "RaidPrep"):
     source = (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8")
     prep_lua.execute("assert(loadstring(...))('TestAddon', ET)", source)
 prep_lua.execute("RunPrepChecks()")
+prep_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / "Inventory.lua").read_text(encoding="utf-8"))
+prep_lua.execute("""
+ET.db.inventory = { Player = { guid = "Player-self", containers = {
+    [0] = { updated = time(), items = { { id = 777, count = 1, link = "" } } },
+} } }
+assert(ET.Inventory:Format("Player", "Player-self"):find("Test Ruby x1", 1, true),
+    "Saved bag names must use the Retail item API without a global GetItemInfo")
+""")
 print("All Lua files compile; crafting groups, loot wishlist, ranks, SimC, roster, tabs, and raid-prep checks passed.")
 
 upgrade_lua = LuaRuntime(unpack_returned_tuples=True)

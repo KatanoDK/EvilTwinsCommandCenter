@@ -3,10 +3,11 @@ for index = 1, 19 do ET.slots[index] = { index, "Slot " .. index } end
 ET.Inventory = { BagCount = function() return 2 end }
 function time() return 100000 end
 function date() return "Today" end
-function GetItemInfo(id) return id == 777 and "Test Ruby" or nil end
+GetItemInfo = nil -- Retail exposes the item lookup through C_Item only.
 Enum = { TooltipDataLineType = { ItemEnchantmentPermanent = 15 } }
 local sockets = { [100] = 2, [200] = 0, [300] = 1, [400] = 0 }
 C_Item = {
+    GetItemInfo = function(id) return id == 777 and "Test Ruby" or nil end,
     GetItemNumSockets = function(link) return sockets[tonumber(link:match("item:(%d+)"))] end,
     GetItemGemID = function(link, index) return link:find("item:100:", 1, true) and index == 1 and 777 or nil end,
     GetItemInfoInstant = function(link) return 1, nil, nil, link:find("item:400:", 1, true) and "INVTYPE_SHIELD" or "INVTYPE_WEAPON" end,

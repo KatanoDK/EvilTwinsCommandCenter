@@ -45,7 +45,7 @@ end
 
 local requestedItems = {}
 local function itemName(id, link)
-    local name = link and link:match("%[(.-)%]") or GetItemInfo(id)
+    local name = link and link:match("%[(.-)%]") or C_Item.GetItemInfo(id)
     if not name and not requestedItems[id] and C_Item and C_Item.RequestLoadItemDataByID then
         requestedItems[id] = true
         C_Item.RequestLoadItemDataByID(id)

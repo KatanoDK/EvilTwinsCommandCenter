@@ -44,8 +44,9 @@ C_EncounterJournal = {
     end,
 }
 local requests = {}
-C_Item = { RequestLoadItemDataByID = function(id) requests[#requests + 1] = id end }
-function GetItemInfo() return nil end
+C_Item = { GetItemInfo = function() return nil end,
+    RequestLoadItemDataByID = function(id) requests[#requests + 1] = id end }
+GetItemInfo = nil
 ET.db.wishlists = { [ET.key] = {} }
 function ET:AddWish(id, note)
     id = tonumber(id)
@@ -79,6 +80,11 @@ function RunLootChecks()
     local items = L:Items(raids[1], 900, 15, true)
     assert(#items == 2 and items.pending and #requests == 1, "Deduplicate drops and load missing names")
     restored()
+    C_Item.GetItemInfo = function(id) return id == 124 and "Cached trinket" or nil end
+    local cached = L:Items(raids[1], 900, 15, true)
+    assert(not cached.pending and #requests == 1 and cached[1].name == "Cached trinket",
+        "Journal drops without names must resolve through the Retail item API")
+    C_Item.GetItemInfo = function() return nil end
     local oldInfo = C_EncounterJournal.GetLootInfoByIndex
     C_EncounterJournal.GetLootInfoByIndex = function(index)
         assert(state.boss == 0, "All bosses must clear a previous encounter selection")

@@ -412,6 +412,7 @@ function UI:Create()
         self.tabButtons[key] = tab
     end
     local buildPanel = panel(detail, 686, 244)
+    buildPanel:Hide()
     buildPanel:SetPoint("TOPLEFT")
     self.tabPanels.build = buildPanel
     label(buildPanel, "TALENTS & SIMULATIONCRAFT", "GameFontNormal"):SetPoint("TOPLEFT", 16, -14)
@@ -463,6 +464,7 @@ function UI:Create()
     raidExport:SetPoint("TOPLEFT", 16, -196)
 
     local prepPanel = panel(detail, 686, 500)
+    prepPanel:Hide()
     prepPanel:SetPoint("TOPLEFT")
     self.tabPanels.prep = prepPanel
     local prepButton = button(prepPanel, "Copy report", 130, 26, function()
@@ -488,6 +490,7 @@ function UI:Create()
     self.supplyRows = {}
     for index, category in ipairs(ET.RaidPrep.categories) do
         local row = CreateFrame("Button", nil, prepPanel)
+        row:Hide()
         row:SetSize(650, 34)
         row.title = label(row, category.label, "GameFontHighlightSmall")
         row.title:SetPoint("LEFT", 0, 0)
@@ -510,6 +513,7 @@ function UI:Create()
     end
 
     local wishPanel = panel(detail, 686, 130)
+    wishPanel:Hide()
     wishPanel:SetPoint("TOPLEFT")
     self.tabPanels.wishlist = wishPanel
     self.wishPanel = wishPanel
@@ -553,6 +557,7 @@ function UI:Create()
 
     for index = 1, 20 do
         local row = CreateFrame("Button", nil, wishPanel)
+        row:Hide()
         row:SetSize(650, 28)
         row.item = label(row, "", "GameFontNormalSmall")
         row.item:SetPoint("LEFT", 0, 0)
@@ -590,6 +595,7 @@ function UI:Create()
         "GameFontHighlightSmall")
     memberMessage:SetPoint("TOPLEFT", 24, -64)
     self.memberMessage = memberMessage
+    self:RefreshTabs()
     frame:SetScript("OnShow", function() UI:Refresh() end)
     frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     frame:SetScript("OnEvent", function()
@@ -694,6 +700,7 @@ function UI:RefreshPrep(snapshot, inventory)
         local text = supply.status == "unknown" and "Unknown" or supply.status == "stale" and "Stale"
             or supply.count > 0 and (supply.count .. "/1") or "Missing"
         readinessText(row.status, text, supply.status)
+        row:Show()
     end
     self.tabPanels.prep:SetHeight(supplyY + 50 + #result.supplies * 36 + 16)
 end
@@ -774,6 +781,8 @@ end
 
 function UI:RefreshDetail()
     if not self.frame then return end
+    -- Establish visibility before item lookups, so a failed refresh cannot stack tabs.
+    self:RefreshTabs()
     if not ET:CanUseLeaderTools() then
         self.selected = ET.key
         self:RefreshTabs()
@@ -795,8 +804,13 @@ function UI:RefreshDetail()
     self.refreshSimcButton:SetText(isSelf and "Generate SimC" or "Request fresh")
     self.buildStatus:SetText(isSelf and "Generate a new export including gear in your current bags."
         or "Request fresh needs this character online with the addon enabled.")
-    local inventory = ET.Inventory:Get(self.selected, snapshot.guid)
-    self:RefreshPrep(snapshot, inventory)
+    if self.activeTab == "prep" then
+        local inventory = ET.Inventory:Get(self.selected, snapshot.guid)
+        self:RefreshPrep(snapshot, inventory)
+        self:RefreshTabs()
+        return
+    end
+    if self.activeTab ~= "wishlist" then return end
     self.browseLootButton:SetShown(isSelf)
     self.itemInput:SetShown(isSelf)
     self.noteInput:SetShown(isSelf)
@@ -818,7 +832,7 @@ function UI:RefreshDetail()
         local wish = wishlist[index]
         if wish then
             row.itemID = wish.id
-            local itemName = GetItemInfo(wish.id)
+            local itemName = C_Item.GetItemInfo(wish.id)
             row.item:SetText(itemName or ("Item #" .. wish.id))
             row.note:SetText(wish.note or "")
             row.remove:SetShown(isSelf)

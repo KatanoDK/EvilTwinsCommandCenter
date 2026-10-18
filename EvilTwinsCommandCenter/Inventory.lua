@@ -103,7 +103,7 @@ function Inventory:Format(key, guid)
             lines[#lines + 1] = "Bag " .. bagID .. "  (" .. date("%Y-%m-%d %H:%M", bag.updated) .. ")"
             if #bag.items == 0 then lines[#lines + 1] = "  Empty" end
             for _, item in ipairs(bag.items) do
-                local name = (item.link or ""):match("%[(.-)%]") or GetItemInfo(item.id) or ("Item #" .. item.id)
+                local name = (item.link or ""):match("%[(.-)%]") or C_Item.GetItemInfo(item.id) or ("Item #" .. item.id)
                 lines[#lines + 1] = "  " .. name .. " x" .. item.count .. "  [item:" .. item.id .. "]"
             end
             lines[#lines + 1] = ""
