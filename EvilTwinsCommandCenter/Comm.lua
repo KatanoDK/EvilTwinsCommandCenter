@@ -1,5 +1,5 @@
 local _, ET = ...
-local Comm = { prefix = "EvilTwinsCC", queue = {}, craftingJobs = {}, incoming = {}, pendingSimC = {},
+local Comm = { prefix = "EvilTwinsCC", queue = {}, leaderJobs = {}, peers = {}, craftingJobs = {}, incoming = {}, pendingSimC = {},
     gearReplies = {}, pendingGearReplies = {} }
 ET.Comm = Comm
 
@@ -14,6 +14,29 @@ local function normalize(name)
     return (name or ""):lower():gsub("%s+", "")
 end
 
+local function peerKey(name)
+    name = normalize(name)
+    if not name:find("-", 1, true) then
+        name = name .. "-" .. normalize(GetNormalizedRealmName() or GetRealmName())
+    end
+    return name
+end
+
+function Comm:HasAddonPeer(name)
+    return self.peers[peerKey(name)] == true
+end
+
+function Comm:RefreshPeers()
+    local online = {}
+    for index = 1, GetNumGuildMembers() do
+        local name, _, _, _, _, _, _, _, connected = GetGuildRosterInfo(index)
+        if name and connected then online[peerKey(name)] = true end
+    end
+    for key in pairs(self.peers) do
+        if not online[key] then self.peers[key] = nil end
+    end
+end
+
 function Comm:IsGuildSender(sender)
     return ET:GetGuildRankIndex(sender) ~= nil
 end
@@ -26,7 +49,7 @@ function Comm:Queue(message, channel, target, priority)
     return true
 end
 
-function Comm:QueueTransfer(kind, text, channel, target)
+function Comm:QueueTransfer(kind, text, channel, target, transferKey)
     if type(text) ~= "string" or #text > 90000 then return false end
     text = ET.Protocol:ToBase64(text)
     local total = math.max(1, math.ceil(#text / CHUNK_SIZE))
@@ -38,14 +61,51 @@ function Comm:QueueTransfer(kind, text, channel, target)
         local chunk = text:sub((index - 1) * CHUNK_SIZE + 1, index * CHUNK_SIZE)
         self:Queue("E|" .. kind .. "|" .. id .. "|" .. index .. "|" .. total .. "|" .. chunk,
             channel, target, kind == "S")
+        local entry = self.queue[kind == "S" and 1 or #self.queue]
+        entry.transferKey = transferKey
     end
     return true
 end
 
-function Comm:QueueToLeaders(kind, data, target)
+function Comm:ScheduleLeaderTransfer(kind, data, target, identity)
+    if type(data) ~= "string" or #data > 90000 then return false end
+    local key = kind .. ":" .. peerKey(target) .. ":" .. tostring(identity or "")
+    -- Keep only the latest waiting update for each recipient and bag/profile.
+    for _, job in ipairs(self.leaderJobs) do
+        if job.key == key then job.data = data; return true end
+    end
+    if #self.leaderJobs >= 1000 then return false end
+    local job = { kind = kind, data = data, target = target, key = key }
+    if kind == "S" then table.insert(self.leaderJobs, 1, job)
+    else self.leaderJobs[#self.leaderJobs + 1] = job end
+    return true
+end
+
+function Comm:FillLeaderQueue()
+    if #self.queue > 200 then return end
+    for index, job in ipairs(self.leaderJobs) do
+        if not self:HasAddonPeer(job.target) or not ET:CanSenderUseLeaderTools(job.target) then
+            table.remove(self.leaderJobs, index)
+            return
+        end
+        local active = false
+        for _, entry in ipairs(self.queue) do
+            if entry.transferKey == job.key then active = true; break end
+        end
+        if not active then
+            if self:QueueTransfer(job.kind, job.data, "WHISPER", job.target, job.key) then
+                table.remove(self.leaderJobs, index)
+            end
+            return
+        end
+    end
+end
+
+function Comm:QueueToLeaders(kind, data, target, identity)
     if target then
         if not ET:CanSenderUseLeaderTools(target) then return false end
-        return self:QueueTransfer(kind, data, "WHISPER", target)
+        if kind == "D" then return self:QueueTransfer(kind, data, "WHISPER", target) end
+        return self:ScheduleLeaderTransfer(kind, data, target, identity)
     end
     local sent = false
     for index = 1, GetNumGuildMembers() do
@@ -53,8 +113,9 @@ function Comm:QueueToLeaders(kind, data, target)
         local fullName = name and (name:find("-", 1, true) and name
             or (name .. "-" .. (GetNormalizedRealmName() or GetRealmName())))
         if name and online and type(rankIndex) == "number"
-            and rankIndex <= ET.leaderRankCutoff and normalize(fullName) ~= normalize(ET.key) then
-            if self:QueueTransfer(kind, data, "WHISPER", name) then
+            and rankIndex <= ET.leaderRankCutoff and normalize(fullName) ~= normalize(ET.key)
+            and self:HasAddonPeer(name) then
+            if self:ScheduleLeaderTransfer(kind, data, name, identity) then
                 sent = true
             else
                 ET:Print("The sharing queue is full; some leaders may need to request a fresh copy.")
@@ -66,11 +127,16 @@ function Comm:QueueToLeaders(kind, data, target)
 end
 
 function Comm:Pump()
+    self:FillLeaderQueue()
     self:FillCraftingQueue()
     self:FillUpgradesQueue()
     if #self.queue == 0 then return end
     if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
     local entry = self.queue[1]
+    if entry.transferKey and not self:HasAddonPeer(entry.target) then
+        table.remove(self.queue, 1)
+        return
+    end
     if entry.channel == "WHISPER" and entry.message:match("^E|[SPICD]|") then
         local rankIndex = ET:GetGuildRankIndex(entry.target)
         if rankIndex == nil then
@@ -112,7 +178,8 @@ function Comm:PublishUpgrades(report, target)
     for index = 1, GetNumGuildMembers() do
         local name, _, rank, _, _, _, _, _, online = GetGuildRosterInfo(index)
         local fullName = name and (name:find("-", 1, true) and name or name .. "-" .. GetNormalizedRealmName())
-        if online and rank and rank <= ET.leaderRankCutoff and normalize(fullName) ~= normalize(ET.key) then
+        if online and rank and rank <= ET.leaderRankCutoff and normalize(fullName) ~= normalize(ET.key)
+            and self:HasAddonPeer(name) then
             if #self.upgradeJobs >= 1000 then break end
             self.upgradeJobs[#self.upgradeJobs + 1] = { report = report, target = name }
             sent = true
@@ -139,7 +206,8 @@ function Comm:FillUpgradesQueue()
     local jobs = self.upgradeJobs
     if not jobs or #jobs == 0 or #self.queue > 200 then return end
     local job = jobs[1]
-    if not ET:CanUseLeaderTools() or not ET:CanSenderUseLeaderTools(job.target) or not ET.Upgrades:FindOwner(job.report) then
+    if not ET:CanUseLeaderTools() or not self:HasAddonPeer(job.target)
+        or not ET:CanSenderUseLeaderTools(job.target) or not ET.Upgrades:FindOwner(job.report) then
         table.remove(jobs, 1)
     elseif self:PublishUpgrades(job.report, job.target) then table.remove(jobs, 1) end
 end
@@ -158,7 +226,7 @@ function Comm:PublishBag(bagID, target)
     local bag = entry and entry.containers[bagID]
     if not bag then return false end
     local data = ET.Protocol:EncodeBag(entry.guid, bagID, bag.updated, bag.items)
-    return self:QueueToLeaders("I", data, target)
+    return self:QueueToLeaders("I", data, target, bagID)
 end
 
 function Comm:PublishBags(target)
@@ -230,7 +298,8 @@ function Comm:InitialSync()
         self:PublishAllCrafting()
     end
     if not self.publishedOnLogin then
-        self.publishedOnLogin = self:Publish(ET:CaptureSelf())
+        self.publishedOnLogin = true
+        self:Publish(ET:CaptureSelf())
     end
     if not self.simcScheduledOnLogin then
         self.simcScheduledOnLogin = true
@@ -338,8 +407,30 @@ function Comm:ReceiveTransfer(sender, channel, message)
     end
 end
 
+function Comm:ShareWithLeader(sender)
+    if not ET:CanSenderUseLeaderTools(sender) then return end
+    self.leaderReplies = self.leaderReplies or {}
+    local key = peerKey(sender)
+    if self.leaderReplies[key] and time() - self.leaderReplies[key] < 60 then return end
+    self.leaderReplies[key] = time()
+    C_Timer.After(math.random(2, 6), function()
+        if self:HasAddonPeer(sender) and ET:CanSenderUseLeaderTools(sender) then
+            self:Publish(ET:CaptureSelf(), sender)
+            self:PublishSimC(sender)
+            self:PublishBags(sender)
+            if ET:CanUseLeaderTools() then self:SyncUpgrades(sender) end
+        end
+    end)
+end
+
 function Comm:OnMessage(prefix, message, channel, sender)
-    if prefix ~= self.prefix or sender == ET.key or sender == UnitName("player") or type(message) ~= "string" then return end
+    if prefix ~= self.prefix or type(message) ~= "string" or not sender
+        or peerKey(sender) == peerKey(ET.key) or not self:IsGuildSender(sender) then return end
+    if channel ~= "GUILD" and channel ~= "WHISPER" then return end
+    local key = peerKey(sender)
+    local discovered = not self.peers[key]
+    self.peers[key] = true
+    if discovered then self:ShareWithLeader(sender) end
     if message:sub(1, 2) == "E|" then
         self:ReceiveTransfer(sender, channel, message)
     elseif channel == "GUILD" and message == "H|C" and self:IsGuildSender(sender) then
@@ -348,18 +439,13 @@ function Comm:OnMessage(prefix, message, channel, sender)
             and time() - self.craftingReplies[requester] < 60 then return end
         self.craftingReplies = self.craftingReplies or {}
         self.craftingReplies[requester] = time()
+        -- Reply even with no saved recipes, so a newly logged-in member can discover us.
+        self:Queue(ET:CanUseLeaderTools() and "H|1" or "H|C", "WHISPER", sender)
         C_Timer.After(math.random(2, 6), function()
             if self:IsGuildSender(sender) then self:PublishAllCrafting(sender) end
         end)
-    elseif channel == "GUILD" and message == "H|1" and ET:CanSenderUseLeaderTools(sender) then
-        C_Timer.After(math.random(2, 6), function()
-            if ET:CanSenderUseLeaderTools(sender) then
-                self:Publish(ET:CaptureSelf(), sender)
-                self:PublishSimC(sender)
-                self:PublishBags(sender)
-                if ET:CanUseLeaderTools() then self:SyncUpgrades(sender) end
-            end
-        end)
+    elseif message == "H|1" then
+        self:ShareWithLeader(sender)
     elseif channel == "GUILD" and message:sub(1, 2) == "Q|" then
         if not ET:CanSenderUseLeaderTools(sender) then return end
         if message:sub(3) ~= UnitGUID("player") then return end
@@ -424,6 +510,7 @@ function Comm:Initialize()
     self.events:SetScript("OnEvent", function(_, event, ...)
         if event == "CHAT_MSG_ADDON" then self:OnMessage(...) end
         if event == "GUILD_ROSTER_UPDATE" or event == "PLAYER_GUILD_UPDATE" then
+            self:RefreshPeers()
             ET:EnforceGuildAccess()
             if GetNumGuildMembers() > 0 then self:InitialSync() end
             if ET.UI then ET.UI:Refresh() end

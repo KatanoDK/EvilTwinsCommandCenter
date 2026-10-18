@@ -57,3 +57,9 @@ raid_lua.execute((root / "tests" / "raid_simc_spec.lua").read_text(encoding="utf
 for name in ("Protocol", "RaidSimC"):
     raid_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8"))
 raid_lua.execute("RunRaidChecks()")
+
+comm_lua = LuaRuntime(unpack_returned_tuples=True)
+comm_lua.execute((root / "tests" / "comm_spec.lua").read_text(encoding="utf-8"))
+for name in ("Protocol", "Permissions", "Comm"):
+    comm_lua.execute("assert(loadstring(...))('TestAddon', ET)", (root / "EvilTwinsCommandCenter" / f"{name}.lua").read_text(encoding="utf-8"))
+comm_lua.execute("RunCommChecks()")
