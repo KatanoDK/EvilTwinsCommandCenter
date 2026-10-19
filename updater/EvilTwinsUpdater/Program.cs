@@ -14,7 +14,8 @@ internal static class Program
             form.Location = new Point(-32000, -32000);
             form.ShowInTaskbar = false;
             if (args[0] == "--preview-reports") form.SelectPage(1);
-            if (args[0] == "--preview-raid") form.SelectPage(2);
+            if (args[0] == "--preview") form.SelectPage(2);
+            if (args[0] == "--preview-raid") form.SelectPage(0);
             form.Show();
             Application.DoEvents();
             using var bitmap = new Bitmap(form.Width, form.Height);

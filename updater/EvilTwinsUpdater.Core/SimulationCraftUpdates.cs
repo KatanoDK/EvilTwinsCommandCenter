@@ -1,4 +1,4 @@
-using System.Net;
+using System.IO.Compression;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -7,74 +7,39 @@ using SharpCompress.Archives.SevenZip;
 
 namespace EvilTwinsUpdater.Core;
 
-public sealed record SimulationCraftBuild(string FileName, int Version, int Release, string Revision, Uri Download);
+public sealed record SimulationCraftBuild(string FileName, int Version, int Release, string Revision, Uri Download)
+{
+    public long ArtifactId { get; init; }
+    public string ArtifactSha256 { get; init; } = "";
+    public long ArtifactSize { get; init; }
+}
 public sealed record SimulationCraftInstallation(string EnginePath, SimulationCraftBuild Build, bool AlreadyCurrent);
 public sealed record EngineUpdateProgress(string Message, int? Percent = null);
 
 public sealed class SimulationCraftUpdates : IDisposable
 {
-    // This is the nightly index linked by simulationcraft.org/download.html.
-    public static readonly Uri Index = new("http://downloads.simulationcraft.org/nightly/?C=M;O=D");
-    private const long MaximumDownload = 350_000_000, MaximumExtracted = 2_000_000_000;
+    public static readonly Uri Index = SimulationCraftArtifacts.Index;
+    private const long MaximumExtracted = 2_000_000_000;
     private readonly HttpClient client;
-    private sealed record Installed(string FileName, string EngineRelativePath, string EngineSha256);
+    private sealed record Installed(string FileName, string EngineRelativePath, string EngineSha256, string ArtifactSha256);
 
     public SimulationCraftUpdates(HttpMessageHandler? handler = null)
     {
-        client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false });
+        client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
         client.Timeout = TimeSpan.FromMinutes(15);
         client.DefaultRequestHeaders.UserAgent.ParseAdd("EvilTwinsUpdater/0.1.0");
     }
 
-    public static SimulationCraftBuild ParseLatest(string html)
+    private static SimulationCraftBuild PackageBuild(SimulationCraftBuild build, string name)
     {
-        var builds = new List<SimulationCraftBuild>();
-        foreach (Match anchor in Regex.Matches(html, "href\\s*=\\s*[\"'](?<href>[^\"']+)[\"']", RegexOptions.IgnoreCase))
-        {
-            if (!Uri.TryCreate(Index, WebUtility.HtmlDecode(anchor.Groups["href"].Value), out var uri)
-                || !Official(uri) || uri.Query.Length > 0 || uri.Fragment.Length > 0) continue;
-            var file = Path.GetFileName(uri.AbsolutePath);
-            var match = Regex.Match(file, @"^simc-(?<version>[0-9]{3,5})(?:\.(?<release>[0-9]{1,3})\.(?<revision>[0-9a-f]{7,40})-win64|-(?<release>[0-9]{1,3})-win64-(?<revision>[0-9a-f]{7,40}))\.7z$");
-            if (!match.Success || uri.AbsolutePath != "/nightly/" + file) continue;
-            builds.Add(new(file, int.Parse(match.Groups["version"].Value), int.Parse(match.Groups["release"].Value),
-                match.Groups["revision"].Value, uri));
-        }
-        // The official listing is sorted newest first within each game version.
-        return builds.OrderByDescending(build => build.Version).ThenByDescending(build => build.Release).FirstOrDefault()
-            ?? throw new InvalidDataException("The official nightly listing has no Windows 64-bit SimulationCraft build. Try again later or use Choose engine.");
+        var match = Regex.Match(name, @"\Asimc-(?<version>[0-9]{3,5})(?:\.(?<release>[0-9]{1,3})\.(?<revision>[0-9a-f]{7,40})-win64|-(?<release>[0-9]{1,3})-win64-(?<revision>[0-9a-f]{7,40}))\.7z\z");
+        if (!match.Success) throw new InvalidDataException("The verified artifact does not contain a recognized Windows x64 SimulationCraft package.");
+        return build with { FileName = name, Version = int.Parse(match.Groups["version"].Value),
+            Release = int.Parse(match.Groups["release"].Value), Revision = match.Groups["revision"].Value };
     }
 
-    private static bool Official(Uri uri) => uri.IsAbsoluteUri && uri.Host == Index.Host
-        && uri.Scheme is "http" or "https" && uri.IsDefaultPort && uri.UserInfo.Length == 0
-        && uri.AbsolutePath.StartsWith("/nightly/", StringComparison.Ordinal);
-
-    private async Task<HttpResponseMessage> GetAsync(Uri uri, CancellationToken cancellation)
-    {
-        for (var redirects = 0; redirects < 5; redirects++)
-        {
-            if (!Official(uri)) throw new InvalidDataException("SimulationCraft redirected outside its official nightly downloads.");
-            var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellation);
-            if ((int)response.StatusCode is >= 300 and <= 399 && response.Headers.Location is { } location)
-            {
-                var next = new Uri(uri, location);
-                response.Dispose();
-                if (uri.Scheme == "https" && next.Scheme != "https") throw new InvalidDataException("SimulationCraft redirected to an insecure download.");
-                uri = next;
-                continue;
-            }
-            try { response.EnsureSuccessStatusCode(); return response; }
-            catch { response.Dispose(); throw; }
-        }
-        throw new InvalidDataException("The SimulationCraft download redirected too many times.");
-    }
-
-    public async Task<SimulationCraftBuild> LatestAsync(CancellationToken cancellation = default)
-    {
-        using var response = await GetAsync(Index, cancellation);
-        using var html = new MemoryStream();
-        await CopyLimitedAsync(response, html, 2_000_000, null, cancellation);
-        return ParseLatest(System.Text.Encoding.UTF8.GetString(html.ToArray()));
-    }
+    public Task<SimulationCraftBuild> LatestAsync(CancellationToken cancellation = default) =>
+        SimulationCraftArtifacts.LatestAsync(client, cancellation);
 
     public async Task<SimulationCraftInstallation> UpdateAsync(string root,
         IProgress<EngineUpdateProgress>? progress = null, CancellationToken cancellation = default)
@@ -94,28 +59,34 @@ public sealed class SimulationCraftUpdates : IDisposable
             try
             {
                 var installed = JsonSerializer.Deserialize<Installed>(await File.ReadAllTextAsync(Path.Combine(current, "engine-build.json"), cancellation));
-                if (installed?.FileName == build.FileName)
+                // Copies installed by the old HTTP updater have no verified artifact digest and are replaced.
+                if (installed?.ArtifactSha256 == build.ArtifactSha256)
                 {
                     var engine = OwnedPath(current, installed.EngineRelativePath);
                     if (File.Exists(engine) && await HashAsync(engine, cancellation) == installed.EngineSha256)
-                        return new(LocalSimulator.ValidateEngine(engine), build, true);
+                        return new(LocalSimulator.ValidateEngine(engine), PackageBuild(build, installed.FileName), true);
                 }
             }
             catch (Exception error) when (error is IOException or JsonException or InvalidDataException) { /* Reinstall an incomplete managed copy. */ }
         }
         var id = Guid.NewGuid().ToString("N");
+        var artifact = OwnedPath(root, "download-" + id + ".zip");
         var archive = OwnedPath(root, "download-" + id + ".7z");
         var stage = OwnedPath(root, "stage-" + id);
         try
         {
-            using (var response = await GetAsync(build.Download, cancellation))
-            await using (var output = new FileStream(archive, FileMode.CreateNew, FileAccess.Write))
-                await CopyLimitedAsync(response, output, MaximumDownload, progress, cancellation);
+            using (var response = await SimulationCraftArtifacts.GetAsync(client, build.Download, false, cancellation))
+            await using (var output = new FileStream(artifact, FileMode.CreateNew, FileAccess.Write))
+                await CopyLimitedAsync(response, output, build.ArtifactSize, progress, cancellation);
+            progress?.Report(new("Verifying SimulationCraft against GitHub's SHA-256 checksum…"));
+            if (new FileInfo(artifact).Length != build.ArtifactSize || await HashAsync(artifact, cancellation) != build.ArtifactSha256)
+                throw new InvalidDataException("SimulationCraft verification failed: the download does not match GitHub's SHA-256 checksum. Nothing was installed; your existing engine was kept.");
+            build = await UnwrapArtifactAsync(build, artifact, archive, cancellation);
             progress?.Report(new("Extracting SimulationCraft…"));
             var relative = await Task.Run(() => Extract(archive, stage, cancellation), cancellation);
             var executable = OwnedPath(stage, relative);
             await File.WriteAllTextAsync(Path.Combine(stage, "engine-build.json"),
-                JsonSerializer.Serialize(new Installed(build.FileName, relative, await HashAsync(executable, cancellation))), cancellation);
+                JsonSerializer.Serialize(new Installed(build.FileName, relative, await HashAsync(executable, cancellation), build.ArtifactSha256)), cancellation);
             cancellation.ThrowIfCancellationRequested();
             // Only complete installations replace current. A failed move restores the old engine.
             if (Directory.Exists(previous)) Directory.Delete(previous, true);
@@ -132,11 +103,37 @@ public sealed class SimulationCraftUpdates : IDisposable
         finally
         {
             if (File.Exists(archive)) File.Delete(archive);
+            if (File.Exists(artifact)) File.Delete(artifact);
             if (Directory.Exists(stage)) Directory.Delete(stage, true);
         }
     }
 
-    private static async Task CopyLimitedAsync(HttpResponseMessage response, Stream output, long limit,
+    private static async Task<SimulationCraftBuild> UnwrapArtifactAsync(SimulationCraftBuild build, string artifact, string archive, CancellationToken cancellation)
+    {
+        using var zip = ZipFile.OpenRead(artifact);
+        // Do not extract ZIP paths. Copy only the single expected package into a generated local filename.
+        if (zip.Entries.Count is < 1 or > 16) throw new InvalidDataException("The verified SimulationCraft artifact has unexpected contents.");
+        var packages = zip.Entries.Where(entry => entry.FullName.EndsWith(".7z", StringComparison.Ordinal)).ToArray();
+        if (packages.Length != 1) throw new InvalidDataException("The verified SimulationCraft artifact must contain one engine package.");
+        var package = packages[0];
+        if (package.FullName != package.Name || package.Length <= 0 || package.Length > SimulationCraftArtifacts.MaximumDownload
+            || zip.Entries.Any(entry => entry != package && (entry.FullName != "simc-version" || entry.Length > 128)))
+            throw new InvalidDataException("The verified SimulationCraft artifact has unexpected contents.");
+        build = PackageBuild(build, package.Name);
+        await using var input = package.Open();
+        await using var output = new FileStream(archive, FileMode.CreateNew, FileAccess.Write);
+        var buffer = new byte[131072]; long length = 0; int count;
+        while ((count = await input.ReadAsync(buffer, cancellation)) > 0) {
+            length += count;
+            if (length > package.Length || length > SimulationCraftArtifacts.MaximumDownload)
+                throw new InvalidDataException("The SimulationCraft package is too large.");
+            await output.WriteAsync(buffer.AsMemory(0, count), cancellation);
+        }
+        if (length != package.Length) throw new InvalidDataException("The SimulationCraft package is incomplete.");
+        return build;
+    }
+
+    internal static async Task CopyLimitedAsync(HttpResponseMessage response, Stream output, long limit,
         IProgress<EngineUpdateProgress>? progress, CancellationToken cancellation)
     {
         var expected = response.Content.Headers.ContentLength;

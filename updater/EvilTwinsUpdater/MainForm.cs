@@ -62,7 +62,7 @@ internal sealed class MainForm : Form
         simulation = new RaidPanel(stateDirectory, preview);
         simulation.EngineChanged += SaveSettings;
         simulation.RunningChanged += () => updateApp.Enabled = !busy && !simulation.IsRunning && availableApp != null;
-        pages = [CreateUpdatesPage(), CreateReportsPage(), simulation];
+        pages = [simulation, CreateReportsPage(), CreateUpdatesPage()];
         foreach (var page in pages) { page.Dock = DockStyle.Fill; pageHost.Controls.Add(page); }
         var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190)); shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -73,7 +73,7 @@ internal sealed class MainForm : Form
         brand.Controls.Add(AppTheme.Label("GUILD TOOLS", 8, muted: true), 0, 2);
         var nav = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown, AutoSize = true,
             WrapContents = false, Padding = new Padding(0, 26, 0, 0) };
-        navigation = [new ModernButton { Text = "Updates" }, new ModernButton { Text = "Droptimizer" }, new ModernButton { Text = "Raid upgrades" }];
+        navigation = [new ModernButton { Text = "Raid upgrades" }, new ModernButton { Text = "Droptimizer" }, new ModernButton { Text = "Updates" }];
         for (var index = 0; index < navigation.Length; index++)
         {
             var target = index; var button = navigation[index]; button.Tag = "navigation";
@@ -149,9 +149,9 @@ internal sealed class MainForm : Form
     public void SelectPage(int index)
     {
         if (index < 0 || index >= pages.Length) return;
-        var titles = new[] { "Addon updates", "Droptimizer reports", "Raid upgrades" };
-        var descriptions = new[] { "Keep the guild addon ready for your next session.",
-            "Bring completed Raidbots upgrade reports into the command center.", "Collect raid DPS profiles and find who benefits most from each drop." };
+        var titles = new[] { "Raid upgrades", "Droptimizer reports", "Addon updates" };
+        var descriptions = new[] { "Collect raid DPS profiles and find who benefits most from each drop.",
+            "Bring completed Raidbots upgrade reports into the command center.", "Keep the guild addon ready for your next session." };
         pageTitle.Text = titles[index]; pageDescription.Text = descriptions[index];
         for (var page = 0; page < pages.Length; page++)
         {

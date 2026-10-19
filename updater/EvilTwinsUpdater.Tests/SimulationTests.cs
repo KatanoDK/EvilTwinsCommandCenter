@@ -45,6 +45,7 @@ internal static class SimulationTests
         var other = await runner.RunAsync(engine, Profile, new SimulationOptions(1000, Mode: SimulationMode.FullSpeed), runs);
         Assert(other.Directory != result.Directory && File.Exists(result.HtmlPath), "New runs must not overwrite old results.");
         Assert(other.Threads == Environment.ProcessorCount, "Full speed must use all available CPU threads.");
+        await RefinementTests.Run(engine, runs);
         await BagComparisonTests.Run(runner, engine, runs);
         await RejectAsync(() => runner.RunAsync(engine, Profile.Replace("Fixture", "FixtureFail"), new SimulationOptions(), runs),
             error => error.Message.Contains("code 40") && error.Message.Contains("Unsupported specialization"), "Engine error details");
@@ -82,10 +83,19 @@ internal static class SimulationTests
             && args.Contains("target_error=0") && args.Contains("json2=report.json")
             && args.Contains("progressbar_type=1"), "Expected controlled simulation settings and parseable progress output.");
         int Option(string key) => int.Parse(args.Single(arg => arg.StartsWith(key + "="))[(key.Length + 1)..]);
+        if (input.Contains("FixtureRefinementFail") && Option("iterations") > 1000)
+        { Console.Error.WriteLine("Refinement fixture failure."); Environment.ExitCode = 41; return; }
+        var refiningFixture = input.Contains("FixtureRefinement");
+        var baselineMean = refiningFixture && Option("iterations") > 1000 ? 20000.0 : 12345.0;
+        double Gain(string key, int changes) => !refiningFixture ? changes * 150
+            : input.Contains("FixtureRefinementNone") ? -500
+            : key switch { "upgrade" => Option("iterations") == 1000 ? 500 : 100,
+                "uncertain" => Option("iterations") == 1000 ? -10 : 10,
+                "variant" => -2000, _ => -500 };
         var sets = input.Split('\n').Where(line => line.StartsWith("profileset.", StringComparison.Ordinal))
             .GroupBy(line => line[11..line.IndexOf('=')].TrimEnd('+'))
             .Select(group => new { name = input.Contains("FixtureMismatch") ? "unknown" : group.Key,
-                mean = 12345.0 + group.Count() * 150, mean_error = 20.0, iterations = Option("iterations") }).ToArray();
+                mean = baselineMean + Gain(group.Key, group.Count()), mean_error = 20.0, iterations = Option("iterations") }).ToArray();
         if (input.Contains("FixtureMissing")) sets = [];
         Console.WriteLine($"Baseline\t1\t{sets.Length + 1}\t{Option("iterations")}\t{Option("iterations")}\t100\t1");
         for (var index = 0; index < sets.Length; index++)
@@ -97,7 +107,7 @@ internal static class SimulationTests
             logs = new[] { new { level = "implementation_not_yet_verified", message = "Fixture mechanic is experimental." } }, sim = new {
             options = new { iterations = Option("iterations"), threads = Option("threads"), confidence = 0.95, confidence_estimator = 1.96 },
             profilesets = new { metric = "Damage per Second", results = sets },
-            players = new[] { new { name = "Fixture", specialization = "unholy", collected_data = new { dps = new { mean = 12345.0, mean_std_dev = 10.0 } } } } } };
+            players = new[] { new { name = "Fixture", specialization = "unholy", collected_data = new { dps = new { mean = baselineMean, mean_std_dev = 10.0 } } } } } };
         File.WriteAllText("report.json", JsonSerializer.Serialize(report));
         File.WriteAllText("report.html", "<html><body>Fixture report</body></html>");
     }

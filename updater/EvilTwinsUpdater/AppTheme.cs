@@ -34,9 +34,24 @@ internal static class AppTheme
         if (control is CheckBox check) check.FlatStyle = FlatStyle.Flat;
         if (control is ListView list) { list.BorderStyle = BorderStyle.None; list.OwnerDraw = true; StyleList(list); }
         if (control is DataGridView grid) StyleGrid(grid);
+        if (control is TextBoxBase or DataGridView or ScrollableControl or ComboBox)
+        {
+            control.HandleCreated += (_, _) => DarkNativeControl(control);
+            if (control.IsHandleCreated) DarkNativeControl(control);
+        }
         foreach (Control child in control.Controls) Apply(child);
         if (control is ModernButton button) button.Refresh();
     }
+
+    private static void DarkNativeControl(Control control)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        SetWindowTheme(control.Handle, "DarkMode_Explorer", null);
+        foreach (Control child in control.Controls)
+            if (child is ScrollBar && child.IsHandleCreated) SetWindowTheme(child.Handle, "DarkMode_Explorer", null);
+    }
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetWindowTheme(IntPtr window, string application, string? classes);
 
     private static void StyleList(ListView list)
     {
@@ -183,6 +198,21 @@ internal sealed class PageTabs : UserControl
 internal sealed class ModernComboBox : ComboBox
 {
     public ModernComboBox() { DrawMode = DrawMode.OwnerDrawFixed; FlatStyle = FlatStyle.Flat; ItemHeight = 24; }
+    protected override void WndProc(ref Message message)
+    {
+        base.WndProc(ref message);
+        if (message.Msg is not (0x000F or 0x0317 or 0x0318)) return; // Paint the native arrow in the same palette, including bitmap previews.
+        using var graphics = message.Msg is 0x0317 or 0x0318 && message.WParam != IntPtr.Zero
+            ? Graphics.FromHdc(message.WParam) : Graphics.FromHwnd(Handle);
+        var arrowWidth = Math.Max(24, SystemInformation.VerticalScrollBarWidth);
+        using var fill = new SolidBrush(Enabled ? AppTheme.Surface : AppTheme.Input);
+        graphics.FillRectangle(fill, Width - arrowWidth, 1, arrowWidth - 1, Height - 2);
+        using var border = new Pen(Focused ? AppTheme.Accent : AppTheme.Border);
+        graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+        var center = new Point(Width - arrowWidth / 2, Height / 2);
+        using var arrow = new SolidBrush(Enabled ? AppTheme.Muted : AppTheme.Border);
+        graphics.FillPolygon(arrow, [new Point(center.X - 4, center.Y - 2), new Point(center.X + 4, center.Y - 2), new Point(center.X, center.Y + 3)]);
+    }
     protected override void OnDrawItem(DrawItemEventArgs args)
     {
         var selected = (args.State & DrawItemState.Selected) != 0 && (args.State & DrawItemState.ComboBoxEdit) == 0;

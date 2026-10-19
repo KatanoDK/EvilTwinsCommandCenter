@@ -102,6 +102,7 @@ try
     await EngineUpdateTests.Run(testRoot);
     await SimulationTests.Run(testRoot);
     RaidTests.Run();
+    await RaidWorkflowTests.Run();
     var first = Zip("first.zip", firstCommit);
     var second = Zip("second.zip", secondCommit);
     AddonInstaller.Install(retail, first, firstCommit);
