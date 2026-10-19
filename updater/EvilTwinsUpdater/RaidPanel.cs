@@ -7,6 +7,7 @@ namespace EvilTwinsUpdater;
 internal sealed class RaidPanel : UserControl
 {
     private readonly string stateDirectory;
+    private readonly bool persistLayout;
     private readonly Button importRaid = new ModernButton { Text = "Import raid export", AutoSize = true, Tag = "primary" };
     private readonly Button copySimC = new ModernButton { Text = "Copy player's SimC", AutoSize = true };
     private readonly Button raidbots = new ModernButton { Text = "Open Raidbots", AutoSize = true };
@@ -31,6 +32,14 @@ internal sealed class RaidPanel : UserControl
     private readonly DataGridView members = Grid();
     private readonly DataGridView loot = Grid();
     private readonly PageTabs tabs = new() { Dock = DockStyle.Fill };
+    private readonly SplitContainer playerSplit = new() { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal,
+        Size = new Size(600, 500), SplitterDistance = 330, SplitterWidth = 12,
+        Panel1MinSize = 200, Panel2MinSize = 90, Margin = Padding.Empty };
+    private readonly Button toggleLocal = new ModernButton { Text = "Hide local controls", AutoSize = true,
+        MinimumSize = new Size(0, 34), Padding = new Padding(12, 4, 12, 4), Tag = "tab" };
+    private readonly ToolTip layoutHints = new();
+    private double playerListShare = 0.66;
+    private bool localControlsHidden, arrangingPanes;
     private readonly System.Windows.Forms.Timer displayTimer = new() { Interval = 250 };
     private readonly DroptimizerClient reports = new();
     private readonly SimulationCraftUpdates engineUpdates = new();
@@ -54,12 +63,13 @@ internal sealed class RaidPanel : UserControl
     public RaidPanel(string stateDirectory, bool preview = false)
     {
         this.stateDirectory = Path.Combine(stateDirectory, "raid-upgrades");
+        persistLayout = !preview;
         Dock = DockStyle.Fill;
         summary.MaximumSize = status.MaximumSize = new Size(820, 0);
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
         actions.Controls.AddRange([importRaid, copySimC, raidbots, importReport, copyReport, cancel]);
         var top = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 1 };
@@ -82,12 +92,15 @@ internal sealed class RaidPanel : UserControl
         filters.Controls.AddRange([playerFilter, search]);
         filters.Controls.Add(AppTheme.Label("Sorted by DPS gain • * within uncertainty", 9, muted: true));
         lootPage.Controls.Add(filters, 0, 0); lootPage.Controls.Add(loot, 0, 1);
-        tabs.AddPage("Loot priorities", lootPage); layout.Controls.Add(tabs, 0, 1);
+        tabs.AddPage("Loot priorities", lootPage);
+        tabs.AddAction(toggleLocal);
+        playerSplit.Panel1.Controls.Add(tabs); layout.Controls.Add(playerSplit, 0, 1);
         playerFilter.SelectedIndexChanged += (_, _) => RefreshLoot(); search.TextChanged += (_, _) => RefreshLoot();
         loot.SelectionChanged += (_, _) => RefreshActions();
 
-        var localCard = new CardPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(16), Margin = new Padding(0, 12, 0, 12) };
-        var localLayout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, RowCount = 5 };
+        var localCard = new CardPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(16), Margin = Padding.Empty };
+        var localLayout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, RowCount = 5 };
         localLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         for (var row = 0; row < 5; row++) localLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         localLayout.Controls.Add(AppTheme.Label("Optional local Droptimizer queue", 11, true), 0, 0);
@@ -105,8 +118,25 @@ internal sealed class RaidPanel : UserControl
         options.Controls.AddRange([loadLoot, source, difficulty, precision]); localLayout.Controls.Add(options, 0, 3);
         var queueActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
         queueActions.Controls.Add(run); localLayout.Controls.Add(queueActions, 0, 4);
-        localCard.Controls.Add(localLayout); layout.Controls.Add(localCard, 0, 2); layout.Controls.Add(status, 0, 3); layout.Controls.Add(progress, 0, 4);
-        tabs.SelectedIndexChanged += () => { localCard.Visible = tabs.SelectedIndex == 0; RefreshActions(); };
+        var localScroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+        localCard.Controls.Add(localLayout); localScroll.Controls.Add(localCard); playerSplit.Panel2.Controls.Add(localScroll);
+        layout.Controls.Add(status, 0, 2); layout.Controls.Add(progress, 0, 3);
+        playerSplit.SizeChanged += (_, _) => ArrangePanes();
+        playerSplit.SplitterMoved += (_, _) => {
+            if (arrangingPanes || playerSplit.Panel2Collapsed || playerSplit.Height <= playerSplit.SplitterWidth) return;
+            playerListShare = (double)playerSplit.SplitterDistance / (playerSplit.Height - playerSplit.SplitterWidth);
+            SaveLayout();
+        };
+        playerSplit.Paint += (_, args) => {
+            if (playerSplit.Panel2Collapsed) return;
+            var grip = playerSplit.SplitterRectangle;
+            using var pen = new Pen(AppTheme.Muted, 2);
+            args.Graphics.DrawLine(pen, grip.Left + grip.Width / 2 - 28, grip.Top + grip.Height / 2,
+                grip.Left + grip.Width / 2 + 28, grip.Top + grip.Height / 2);
+        };
+        layoutHints.SetToolTip(playerSplit, "Drag the divider up or down to resize the player list.");
+        toggleLocal.Click += (_, _) => { localControlsHidden = !localControlsHidden; ArrangePanes(); SaveLayout(); };
+        tabs.SelectedIndexChanged += () => { ArrangePanes(); RefreshActions(); };
         Controls.Add(layout);
         importRaid.Click += (_, _) => ImportRaid(); copySimC.Click += (_, _) => Copy(SelectedMember?.Profile, "Player's SimC copied. Paste it into Raidbots Droptimizer.");
         raidbots.Click += (_, _) => Open("https://www.raidbots.com/simbot/droptimizer");
@@ -124,8 +154,56 @@ internal sealed class RaidPanel : UserControl
         cancel.Click += (_, _) => { cancellation?.Cancel(); cancel.Enabled = false;
             status.Text = updatingEngine ? "Stopping SimulationCraft download…" : "Stopping queue; completed results will be kept…"; };
         displayTimer.Tick += (_, _) => UpdateProgress();
-        if (!preview) LoadSession();
+        if (!preview) { LoadLayout(); LoadSession(); }
+        ArrangePanes();
         RefreshMembers(); RefreshActions();
+    }
+
+    private void ArrangePanes()
+    {
+        if (arrangingPanes) return;
+        arrangingPanes = true;
+        try
+        {
+            toggleLocal.Visible = tabs.SelectedIndex == 0;
+            toggleLocal.Text = localControlsHidden ? "Show local controls" : "Hide local controls";
+            var available = playerSplit.ClientSize.Height - playerSplit.SplitterWidth;
+            playerSplit.Panel2Collapsed = tabs.SelectedIndex != 0 || localControlsHidden
+                || available < playerSplit.Panel1MinSize + playerSplit.Panel2MinSize;
+            if (!playerSplit.Panel2Collapsed)
+                playerSplit.SplitterDistance = Math.Clamp((int)(available * playerListShare),
+                    playerSplit.Panel1MinSize, available - playerSplit.Panel2MinSize);
+            playerSplit.Invalidate();
+        }
+        finally { arrangingPanes = false; }
+    }
+
+    private sealed record LayoutPreferences(double PlayerListShare, bool LocalControlsHidden);
+    private void LoadLayout()
+    {
+        try
+        {
+            var path = Path.Combine(stateDirectory, "layout.json");
+            if (!File.Exists(path) || new FileInfo(path).Length > 4096) return;
+            var saved = JsonSerializer.Deserialize<LayoutPreferences>(File.ReadAllText(path));
+            if (saved == null) return;
+            if (double.IsFinite(saved.PlayerListShare) && saved.PlayerListShare is >= 0.1 and <= 0.95)
+                playerListShare = saved.PlayerListShare;
+            localControlsHidden = saved.LocalControlsHidden;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { /* Use the default layout. */ }
+    }
+    private void SaveLayout()
+    {
+        if (!persistLayout) return;
+        try
+        {
+            Directory.CreateDirectory(stateDirectory);
+            var path = Path.Combine(stateDirectory, "layout.json");
+            File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(new LayoutPreferences(playerListShare, localControlsHidden)));
+            File.Move(path + ".tmp", path, true);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { /* Resizing remains usable without persistence. */ }
     }
 
     private static DataGridView Grid() => new() { Dock = DockStyle.Fill, ReadOnly = true, RowHeadersVisible = false,
@@ -395,7 +473,7 @@ internal sealed class RaidPanel : UserControl
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { displayTimer.Dispose(); reports.Dispose(); engineUpdates.Dispose(); cancellation?.Cancel(); }
+        if (disposing) { displayTimer.Dispose(); layoutHints.Dispose(); reports.Dispose(); engineUpdates.Dispose(); cancellation?.Cancel(); }
         base.Dispose(disposing);
     }
     private sealed class InlineProgress(Action<string> callback) : IProgress<string>

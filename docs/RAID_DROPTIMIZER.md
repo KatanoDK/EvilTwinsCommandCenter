@@ -51,6 +51,8 @@ The report must match the collected player's name, realm, region, specialization
 
 **Raid group** shows availability, individual errors and each player's best positive gain. Double-click a ready player to open their loot results. **Loot priorities** gives the result list more room, filters by player and searches item names, boss names or drop IDs. It sorts by absolute DPS gain to help compare the benefit of a drop across players; percentages and uncertainty remain visible. Hover an item for report settings, source and conversion details.
 
+Drag the horizontal divider below the player list down to make the list taller, or up to give the local simulation controls more room. Those controls scroll independently when space is limited. **Hide local controls** expands the list to the full available height; **Show local controls** brings them back. The app remembers the divider position and collapsed state. **Loot priorities** always uses the full height.
+
 Select a completed result and click **Copy addon report**. In WoW, paste it into **Wishlist & upgrades → Import report**. The existing leader report sharing then distributes it to online eligible officers. Local reports have no Raidbots web link, so **Copy report link** is disabled for them. Results remain separate from manual wishlists.
 
 The active raid session and completed results are saved under `%LOCALAPPDATA%/EvilTwinsUpdater/raid-upgrades/`. Local run subfolders retain input, JSON, HTML and console logs. They are not written to WoW's folders or SavedVariables. These files can contain character/build information; delete the saved session/run folders when no longer needed.
