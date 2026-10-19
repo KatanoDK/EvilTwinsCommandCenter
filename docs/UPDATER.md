@@ -30,6 +30,8 @@ App packages use [Velopack](https://docs.velopack.io/getting-started/wpf), pinne
 
 The app's **Droptimizer** tab imports completed reports into the addon; see [Droptimizer instructions](DROPTIMIZER.md).
 
+In **Raid upgrades**, **Install / update SimulationCraft** downloads the latest official Windows x64 nightly, extracts it and automatically selects its local engine. It checks only when clicked, skips downloading an intact current build, supports cancellation and keeps the selected engine on failure. **Choose engine** still supports a manually installed copy. See [engine update details](RAID_DROPTIMIZER.md#optional-local-queue).
+
 The desktop app uses a dark sidebar, rounded cards and a table of imported upgrades. **Raid upgrades** replaces the standalone simulator screen: import the raid's DPS exports, queue individual local Droptimizers, or import completed Raidbots reports for those players. Results can be filtered by player or searched by drop/boss. Local queues display progress and an approximate time remaining, preserve completed results when stopped, and resume remaining players with the same settings. See [raid Droptimizer setup](RAID_DROPTIMIZER.md).
 
 ## Build and test

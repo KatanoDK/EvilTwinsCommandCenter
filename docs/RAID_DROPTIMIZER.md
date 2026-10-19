@@ -17,7 +17,7 @@ Re-import after gear/talent changes. Results are retained for profiles whose act
 
 ## Optional local queue
 
-1. Extract a current official [Windows SimulationCraft download](https://www.simulationcraft.org/download.html). Click **Choose engine** and select `simc.exe`. The engine location from the previous simulator is retained.
+1. Click **Install / update SimulationCraft**. The app finds the latest official Windows x64 nightly, downloads and extracts it, selects `simc.exe`, and saves the selection. No separate 7-Zip installation is needed. Clicking again checks for a newer nightly and reuses an intact current build. **Choose engine** remains available for an existing extracted download; the engine location from the previous simulator is retained until you select or install another engine.
 2. Click **Load loot data**. The first load needs the internet; a complete validated snapshot is cached for 24 hours. Public data comes from [Raidbots' developer data](https://www.raidbots.com/developers), downloaded anonymously. Character exports stay on the PC during local runs.
 3. Choose a supported raid, LFR/Normal/Heroic/Mythic, and screening (1,000), standard (5,000), or detailed (20,000) iterations.
 4. Click **Queue local Droptimizers**. Each player gets a baseline and one-item alternatives. Characters run sequentially; finished results appear immediately. A failed character does not stop the remaining queue.
@@ -27,6 +27,10 @@ Local generation is currently verified for **Midnight Season 2 / The Venomous Ab
 This uses the same CPU engine as a basic local simulation and is not a speed shortcut. Testing more items increases the work. The real-engine smoke test used official 1210-01 build `7ffaabf`, 1,000 iterations, and 56 candidates for an Unholy Death Knight; it took roughly 83 seconds on this PC. Other specs, loot counts, precision and computers differ. Background mode uses half the available CPU threads at below-normal process priority. The queue uses 300-second Patchwerk, one target, standard raid buffs, 95% confidence and the engine's default class rotation. The progress estimate is approximate and can change as different classes run.
 
 **Stop queue** terminates the active engine process and keeps finished results. Clicking the queue button again retries remaining/failed players if the source, difficulty and precision match. Changing those settings starts a new comparison. App restart updates wait until the queue/download is stopped or finished.
+
+Engine updates run only when you click **Install / update SimulationCraft**. Downloads show progress and a **Stop download** button. A local queue or another operation disables engine replacement; app restarts wait for the download to finish or stop. Failed or cancelled downloads leave the selected engine intact. Managed installations keep the current engine and one previous copy under `%LOCALAPPDATA%/EvilTwinsUpdater/raid-upgrades/engines/`; manually selected installations are not modified.
+
+The download source is the nightly server linked from [SimulationCraft's download page](https://www.simulationcraft.org/download.html). That upstream index currently uses HTTP. The app limits downloads and redirects to that server, validates archive paths, sizes and the Windows executable, and stages the complete package before replacing the managed copy. Its local executable hash detects a damaged cached installation; it is not an independently published authenticity checksum.
 
 ### What the local results assume
 

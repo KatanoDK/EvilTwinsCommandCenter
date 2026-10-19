@@ -14,7 +14,7 @@ internal sealed class RaidPanel : UserControl
     private readonly Button copyReport = new ModernButton { Text = "Copy addon report", AutoSize = true };
     private readonly Button loadLoot = new ModernButton { Text = "Load loot data", AutoSize = true };
     private readonly Button choose = new ModernButton { Text = "Choose engine", AutoSize = true };
-    private readonly Button getEngine = new ModernButton { Text = "Get engine", AutoSize = true };
+    private readonly Button getEngine = new ModernButton { Text = "Install / update SimulationCraft", AutoSize = true };
     private readonly Button run = new ModernButton { Text = "Queue local Droptimizers", AutoSize = true, Tag = "primary" };
     private readonly Button cancel = new ModernButton { Text = "Stop queue", AutoSize = true, Enabled = false };
     private readonly TextBox engine = new() { ReadOnly = true, Dock = DockStyle.Fill, PlaceholderText = "Optional local mode: choose simc.exe" };
@@ -33,6 +33,7 @@ internal sealed class RaidPanel : UserControl
     private readonly PageTabs tabs = new() { Dock = DockStyle.Fill };
     private readonly System.Windows.Forms.Timer displayTimer = new() { Interval = 250 };
     private readonly DroptimizerClient reports = new();
+    private readonly SimulationCraftUpdates engineUpdates = new();
     private readonly List<RaidDropResult> results = [];
     private readonly Dictionary<string, string> states = new(StringComparer.OrdinalIgnoreCase);
     private RaidExport? raid;
@@ -41,6 +42,7 @@ internal sealed class RaidPanel : UserControl
     private CancellationTokenSource? cancellation;
     private Task? runningTask;
     private bool updating;
+    private bool updatingEngine;
     private int jobIndex, jobCount;
     private string currentPlayer = "";
     private SimulationProgress? tracker;
@@ -90,9 +92,12 @@ internal sealed class RaidPanel : UserControl
         for (var row = 0; row < 5; row++) localLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         localLayout.Controls.Add(AppTheme.Label("Optional local Droptimizer queue", 11, true), 0, 0);
         localLayout.Controls.Add(AppTheme.Label("One drop at a time, one DPS player at a time. Uses CPU SimulationCraft; it still takes time.", 9, muted: true), 0, 1);
-        var engineRow = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 3 };
-        engineRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); engineRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); engineRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        engineRow.Controls.Add(engine, 0, 0); engineRow.Controls.Add(choose, 1, 0); engineRow.Controls.Add(getEngine, 2, 0); engine.Margin = new Padding(0, 8, 12, 8);
+        var engineRow = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 2 };
+        engineRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); engineRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        engineRow.Controls.Add(engine, 0, 0); engineRow.Controls.Add(choose, 1, 0); engine.Margin = new Padding(0, 8, 12, 8);
+        var engineActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 8) };
+        engineActions.Controls.Add(getEngine);
+        engineRow.Controls.Add(engineActions, 0, 1); engineRow.SetColumnSpan(engineActions, 2);
         localLayout.Controls.Add(engineRow, 0, 2);
         difficulty.Items.AddRange(["LFR", "Normal", "Heroic", "Mythic"]); difficulty.SelectedIndex = 2;
         precision.Items.AddRange(["Screening: 1,000", "Standard: 5,000", "Detailed: 20,000"]); precision.SelectedIndex = 0;
@@ -113,10 +118,11 @@ internal sealed class RaidPanel : UserControl
             try { SetEnginePath(LocalSimulator.ValidateEngine(dialog.FileName)); EngineChanged?.Invoke(); }
             catch (Exception error) { status.Text = error.Message; }
         };
-        getEngine.Click += (_, _) => Open("https://www.simulationcraft.org/download.html");
+        getEngine.Click += async (_, _) => { if (!IsRunning && !updating) { runningTask = UpdateEngineAsync(); await runningTask; } };
         loadLoot.Click += async (_, _) => { if (!IsRunning && !updating) { runningTask = LoadLootAsync(); await runningTask; } };
         run.Click += async (_, _) => { if (!IsRunning && !updating) { runningTask = RunQueueAsync(); await runningTask; } };
-        cancel.Click += (_, _) => { cancellation?.Cancel(); cancel.Enabled = false; status.Text = "Stopping queue; completed results will be kept…"; };
+        cancel.Click += (_, _) => { cancellation?.Cancel(); cancel.Enabled = false;
+            status.Text = updatingEngine ? "Stopping SimulationCraft download…" : "Stopping queue; completed results will be kept…"; };
         displayTimer.Tick += (_, _) => UpdateProgress();
         if (!preview) LoadSession();
         RefreshMembers(); RefreshActions();
@@ -138,7 +144,7 @@ internal sealed class RaidPanel : UserControl
     private void RefreshActions()
     {
         var available = !IsRunning && !updating;
-        importRaid.Enabled = importReport.Enabled = choose.Enabled = loadLoot.Enabled = available;
+        importRaid.Enabled = importReport.Enabled = choose.Enabled = getEngine.Enabled = loadLoot.Enabled = available;
         copySimC.Enabled = SelectedMember?.Ready == true;
         copyReport.Enabled = SelectedResult != null;
         source.Enabled = difficulty.Enabled = precision.Enabled = available;
@@ -242,6 +248,32 @@ internal sealed class RaidPanel : UserControl
     }
     private void BeginWork() { cancellation = new CancellationTokenSource(); RefreshActions(); RunningChanged?.Invoke(); }
     private void EndWork() { displayTimer.Stop(); cancellation?.Dispose(); cancellation = null; tracker = null; RefreshActions(); RunningChanged?.Invoke(); }
+    private async Task UpdateEngineAsync()
+    {
+        updatingEngine = true; cancel.Text = "Stop download";
+        BeginWork(); progress.Maximum = 100; progress.Value = 0;
+        try
+        {
+            var updateProgress = new Progress<EngineUpdateProgress>(value => {
+                if (!updatingEngine) return;
+                status.Text = value.Message;
+                progress.Style = value.Percent.HasValue ? ProgressBarStyle.Continuous : ProgressBarStyle.Marquee;
+                if (value.Percent.HasValue) progress.Value = Math.Clamp(value.Percent.Value, 0, 100);
+            });
+            var installed = await engineUpdates.UpdateAsync(Path.Combine(stateDirectory, "engines"), updateProgress, cancellation!.Token);
+            SetEnginePath(installed.EnginePath); EngineChanged?.Invoke();
+            status.Text = installed.AlreadyCurrent ? $"SimulationCraft is up to date: {installed.Build.FileName}. Engine selected."
+                : $"SimulationCraft installed: {installed.Build.FileName}. Ready for local Droptimizers.";
+            progress.Value = 100;
+        }
+        catch (OperationCanceledException) { status.Text = "SimulationCraft update stopped. Your selected engine was kept."; }
+        catch (Exception error) { status.Text = "Could not update SimulationCraft: " + error.Message + " Your selected engine was kept."; }
+        finally
+        {
+            updatingEngine = false; cancel.Text = "Stop queue"; progress.Style = ProgressBarStyle.Continuous;
+            progress.Maximum = 1000; progress.Value = 0; EndWork();
+        }
+    }
     private async Task LoadLootAsync()
     {
         BeginWork(); status.Text = "Loading current-season loot data…";
@@ -363,7 +395,7 @@ internal sealed class RaidPanel : UserControl
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { displayTimer.Dispose(); reports.Dispose(); cancellation?.Cancel(); }
+        if (disposing) { displayTimer.Dispose(); reports.Dispose(); engineUpdates.Dispose(); cancellation?.Cancel(); }
         base.Dispose(disposing);
     }
     private sealed class InlineProgress(Action<string> callback) : IProgress<string>

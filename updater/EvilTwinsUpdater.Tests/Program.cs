@@ -20,6 +20,16 @@ if (args.Length == 2 && args[0] == "--verify-loot-data")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--verify-engine-update")
+{
+    using var updates = new SimulationCraftUpdates();
+    var installed = await updates.UpdateAsync(args[1], new Progress<EngineUpdateProgress>(value => Console.WriteLine(value.Message)));
+    var cached = await updates.UpdateAsync(args[1]);
+    if (!cached.AlreadyCurrent || cached.EnginePath != installed.EnginePath) throw new Exception("The installed nightly was not reused.");
+    Console.WriteLine($"PASS: official live nightly installed and reused: {installed.Build.FileName}, {installed.EnginePath}");
+    return;
+}
+
 if (args.Length == 4 && args[0] == "--verify-raid")
 {
     await RaidTests.VerifyReal(args[1], args[2], args[3]);
@@ -89,6 +99,7 @@ try
 {
     await DropTests.Run(testRoot);
     await AppUpdateTests.Run(testRoot);
+    await EngineUpdateTests.Run(testRoot);
     await SimulationTests.Run(testRoot);
     RaidTests.Run();
     var first = Zip("first.zip", firstCommit);
